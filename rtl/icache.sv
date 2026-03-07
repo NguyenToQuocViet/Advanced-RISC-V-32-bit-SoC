@@ -85,7 +85,7 @@ module icache
 
     state_t state, next_state;
 
-    //next state logic
+    //FSM: next state logic
     always_comb begin
         //default
         next_state = state;
@@ -112,7 +112,7 @@ module icache
         endcase
     end
 
-    //register state + datapath
+    //FSM: register state + datapath
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state       <= IDLE;
@@ -127,7 +127,7 @@ module icache
                     if (if_req && !cache_hit) begin
                         rf_tag      <= pc_tag;
                         rf_idx      <= pc_idx;
-                        rf_word_sel <= pc_word_sel;
+                        rf_word_sel <= pc_word_sel; //refill tu critical word, khong phai tu 0
                         rf_valid    <= '0;
                     end
                 end
@@ -142,7 +142,8 @@ module icache
                     if (arb_valid) begin
                         rf_buffer[rf_word_sel]  <= arb_rdata;
                         rf_valid[rf_word_sel]   <= 1'b1;
-                        rf_word_sel             <= rf_word_sel + 1'b1;
+
+                        rf_word_sel             <= rf_word_sel + 1'b1;  //moi cycle tang len 1, tu wrap ve khi tran bit
                     end
                 end
 
@@ -159,4 +160,46 @@ module icache
             endcase
         end
     end
+
+    //FSM: output logic
+    always_comb begin
+        instr           = '0;
+        icache_valid    = 1'b0;
+        icache_ready    = 1'b0;
+
+        case (state)
+            IDLE: begin
+                icache_ready = 1'b1;
+                
+                //neu hit
+                if (if_req && cache_hit) begin
+                    instr           = hit_data;
+                    icache_valid    = 1'b1;
+                end
+            end
+
+            REFILL_REQ: begin
+                
+            end
+
+            REFILL_DATA: begin
+                if (rf_buffer_hit) begin
+                    instr       = rf_buffer[pc_word_sel];
+                    icache_valid= 1'b1;
+                end
+
+                icache_ready    = 1'b0; //khong nhan pc moi
+            end
+
+            REFILL_DONE: begin
+                instr       = rf_buffer[pc_word_sel];
+                icache_valid= 1'b1;
+                icache_ready= 1'b1; //nhan pc moi
+            end
+        endcase
+    end
+
+    //Bus Arbiter
+    assign icache_req   = (state == REFILL_REQ);
+    assign icache_addr  = {rf_tag, rf_idx, rf_word_sel, {WORD_OFF_BITS{1'b0}}};
 endmodule
