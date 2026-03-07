@@ -111,4 +111,52 @@ module icache
             end
         endcase
     end
+
+    //register state + datapath
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state       <= IDLE;
+            cache_valid <= '0;
+            rf_valid    <= '0;
+        end else begin
+            state <= next_state;
+
+            case (state) 
+                IDLE: begin
+                    //neu miss -> latch dia chi miss cho refill
+                    if (if_req && !cache_hit) begin
+                        rf_tag      <= pc_tag;
+                        rf_idx      <= pc_idx;
+                        rf_word_sel <= pc_word_sel;
+                        rf_valid    <= '0;
+                    end
+                end
+
+                REFILL_REQ: begin
+
+                end
+
+
+                REFILL_DATA: begin
+                    //moi clock ghi 1 word vao refill buffer
+                    if (arb_valid) begin
+                        rf_buffer[rf_word_sel]  <= arb_rdata;
+                        rf_valid[rf_word_sel]   <= 1'b1;
+                        rf_word_sel             <= rf_word_sel + 1'b1;
+                    end
+                end
+
+                REFILL_DONE: begin
+                    //ghi 1 luc toan bo refill buffer vao SRAM
+                    cache_tag[rf_idx]   <= rf_tag;
+                    cache_valid[rf_idx] <= 1'b1;
+
+                    for (int w = 0; w < WORDS_PER_LINE; w++)
+                        cache_data[rf_idx][w] <= rf_buffer[w];
+
+                    rf_valid    <= '0;    //clear refill buffer
+                end
+            endcase
+        end
+    end
 endmodule
