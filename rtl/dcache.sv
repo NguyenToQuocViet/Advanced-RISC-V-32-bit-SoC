@@ -246,4 +246,77 @@ module dcache
             endcase
         end
     end
+
+    //fsm output logic
+    always_comb begin
+        rdata           = '0;
+        dcache_valid    = 1'b0;
+        dcache_ready    = 1'b0;
+        
+        wb_push         = 1'b0;
+        wb_addr         = '0;
+        wb_data         = '0;
+        wb_strb         = '0;
+
+        case (state)
+            IDLE: begin
+                if (mem_req) begin
+                    //load
+                    if (!mem_we) begin
+                        //hit
+                        if (cache_hit) begin
+                            rdata           = merged_rdata;
+                            dcache_valid    = 1'b1;
+                            dcache_ready    = 1'b1;
+                        //miss but have data in write buffer
+                        end else if (fwd_full_cover) begin
+                            rdata           = fwd_data;
+                            dcache_valid     = 1'b1;
+                            dcache_ready    = 1'b1;
+                        //miss real -> stall 
+                        end
+                    //store
+                    end else begin
+                        //push to write buffer
+                        if (!wb_full) begin
+                            wb_push = 1'b1;
+                            wb_addr = {addr[ADDR_WIDTH-1:WORD_OFF_BITS], {WORD_OFF_BITS{1'b0}}};
+                            wb_data = wdata;
+                            wb_strb = wstrb;
+                            dcache_valid = 1'b1;
+                            dcache_ready = 1'b1;
+                        //write buffer full -> stall
+                        end
+                    end
+                //no request
+                end else begin
+                    dcache_ready = 1'b1;
+                end
+            end
+
+            REFILL_REQ: begin
+                //wait for arb grant
+            end
+
+            REFILL_DATA: begin
+                //cwf
+                if (rf_buffer_hit) begin
+                    rdata           = rf_merged_rdata;
+                    dcache_valid    = 1'b1;
+                end
+
+                dcache_ready = 1'b0;    //chua nhan req moi
+            end
+
+            REFILL_DONE: begin
+                rdata           = rf_merged_rdata;
+                dcache_valid    = 1'b1;
+                dcache_ready    = 1'b1;
+            end
+        endcase
+    end
+
+    //Bus Arbiter req
+    assign dcache_req  = (state == REFILL_REQ);
+    assign dcache_addr = {rf_tag, rf_idx, rf_word_sel, {WORD_OFF_BITS{1'b0}}};
 endmodule
