@@ -27,7 +27,7 @@ package cache_pkg;
     localparam DATA_WIDTH       = 32;
     localparam STRB_WIDTH       = DATA_WIDTH / 8;
     localparam LINE_BYTES       = 16;
-    localparam WORD_PER_LINE    = LINE_BYTES / (DATA_WIDTH / 8);
+    localparam WORDS_PER_LINE    = LINE_BYTES / (DATA_WIDTH / 8);
     localparam WORD_OFF_BITS    = $clog2(DATA_WIDTH / 8);
     localparam LINE_OFF_BITS    = $clog2(LINE_BYTES);
     localparam WORD_SEL_BITS    = $clog2(WORDS_PER_LINE);
