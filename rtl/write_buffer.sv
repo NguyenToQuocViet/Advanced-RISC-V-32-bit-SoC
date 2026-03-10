@@ -22,10 +22,10 @@
 // -----------------------------------------------------------------------------
 
 module write_buffer
-    import cache_pkg::*
+    import cache_pkg::*;
 (
     //system
-    input logic clk, rst_n;
+    input logic clk, rst_n,
 
     //dcache - write buffer interface
     input logic                     push,
@@ -48,15 +48,15 @@ module write_buffer
     output logic    fence_done,
 
     //arbiter - write buffer interface
-    output logic                    arb_wr_req,
-    output logic [ADDR_WIDTH-1:0]   arb_wr_addr,
-    output logic [DATA_WIDTH-1:0]   arb_wr_data,
-    output logic [STRB_WIDTH-1:0]   arb_wr_strb,
+    output logic                    wb_req,
+    output logic [ADDR_WIDTH-1:0]   wb_addr,
+    output logic [DATA_WIDTH-1:0]   wb_data,
+    output logic [STRB_WIDTH-1:0]   wb_strb,
 
     input logic                     arb_wr_done
 );
     //FIFO storage
-    logic [WB_DEPTH] entry_valid;   //4 entry, small -> use packed
+    logic [WB_DEPTH-1:0] entry_valid;   //4 entry, small -> use packed
     logic [ADDR_WIDTH-1:0] entry_addr [WB_DEPTH];
     logic [DATA_WIDTH-1:0] entry_data [WB_DEPTH];
     logic [STRB_WIDTH-1:0] entry_strb [WB_DEPTH];
@@ -73,7 +73,7 @@ module write_buffer
     assign ptr_idx_eq = (head_idx == tail_idx);
 
     logic empty;
-    assign empty = ptr_idx_eq && (head[WB_PTR_BITS] == tail[WB_OTR_BITS]);
+    assign empty = ptr_idx_eq && (head[WB_PTR_BITS] == tail[WB_PTR_BITS]);
     assign wb_full = ptr_idx_eq && (head[WB_PTR_BITS] != tail[WB_PTR_BITS]);
 
     //FIFO Push and Pop
@@ -103,6 +103,8 @@ module write_buffer
     end
 
     //store-to-load forwarding  
+    logic [STRB_WIDTH-1:0] byte_covered;
+
     always_comb begin
         fwd_hit      = 1'b0;
         fwd_data     = '0;
@@ -127,4 +129,13 @@ module write_buffer
             end
         end
     end
+
+    //fence support
+    assign fence_done = fence && empty;
+
+    //write drain (pop)
+    assign wb_req   = !empty;
+    assign wb_addr  = entry_addr[head_idx];
+    assign wb_data  = entry_data[head_idx];
+    assign wb_strb  = entry_strb[head_idx];
 endmodule

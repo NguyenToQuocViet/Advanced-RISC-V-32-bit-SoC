@@ -1,0 +1,46 @@
+#-----------------------------------------------------------
+# Vivado v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 12:34:56 MST 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Tue Mar 10 15:01:38 2026
+# Process ID         : 104901
+# Current directory  : /home/quocviet/Project/Advanced-RISC-V-32-bit-Processor/work
+# Command line       : vivado -mode batch -source ../create_project.tcl -tclargs Advanced-RISC-V-32-bit-Processor
+# Log file           : /home/quocviet/Project/Advanced-RISC-V-32-bit-Processor/work/vivado.log
+# Journal file       : /home/quocviet/Project/Advanced-RISC-V-32-bit-Processor/work/vivado.jou
+# Running On         : quocviet-workstation
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 24.04.4 LTS
+# Processor Detail   : 12th Gen Intel(R) Core(TM) i5-12400F
+# CPU Frequency      : 3914.642 MHz
+# CPU Physical cores : 6
+# CPU Logical cores  : 12
+# Host memory        : 33453 MB
+# Swap memory        : 25769 MB
+# Total Virtual      : 59223 MB
+# Available Virtual  : 53855 MB
+#-----------------------------------------------------------
+source ../create_project.tcl
+# set project_name [lindex $::argv 0]
+# set part_name "xc7z020clg484-1"
+# set rtl_dir    "../rtl"
+# set tb_dir     "../tb"
+# set work_dir   "."
+# create_project -force $project_name $work_dir -part $part_name
+# set rtl_files [concat [glob -nocomplain ${rtl_dir}/*.v] [glob -nocomplain ${rtl_dir}/*.sv]]
+# if {[llength $rtl_files] > 0} {
+#     add_files $rtl_files
+# }
+# set tb_files [concat [glob -nocomplain ${tb_dir}/*.v] [glob -nocomplain ${tb_dir}/*.sv]]
+# if {[llength $tb_files] > 0} {
+#     add_files -fileset sim_1 $tb_files
+# }
+# foreach file [get_files *.sv] {
+#     set_property file_type SystemVerilog $file
+# }
+# update_compile_order -fileset sources_1
+# puts "Project $project_name created successfully"
+Project Advanced-RISC-V-32-bit-Processor created successfully
+# exit
+INFO: [Common 17-206] Exiting Vivado at Tue Mar 10 15:01:42 2026...
