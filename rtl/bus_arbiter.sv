@@ -46,6 +46,14 @@ module bus_arbiter
     output logic                    dcache_valid,
     output logic                    dcache_last,
 
+    //write buffer - arbiter write interface
+    input  logic                    arb_wr_req,
+    input  logic [ADDR_WIDTH-1:0]   arb_wr_addr,
+    input  logic [DATA_WIDTH-1:0]   arb_wr_data,
+    input  logic [STRB_WIDTH-1:0]   arb_wr_strb,
+
+    output logic                    arb_wr_done,  
+
     //AXI4 master - read addr channel
     output logic                    m_axi_arvalid,
     output logic [ADDR_WIDTH-1:0]   m_axi_araddr,
@@ -70,7 +78,7 @@ module bus_arbiter
     output logic [2:0]              m_axi_awsize,
     output logic [1:0]              m_axi_awburst,
     
-    input logic                     m_axi_awready
+    input logic                     m_axi_awready,
 
     //AXI4 master - write data channel
     output logic                    m_axi_wvalid,
@@ -86,5 +94,116 @@ module bus_arbiter
 
     output logic        m_axi_bready
 );
-    
+    //fixed-priority arbiter 
+    typedef enum logic [1:0] {
+        RD_IDLE,
+        RD_ADDR,
+        RD_DATA
+    } rd_state_t;
+
+    typedef enum logic {
+        RD_OWNER_IC,
+        RD_OWNER_DC
+    } rd_owner_t;
+
+    rd_state_t rd_state, rd_state_next;
+    rd_owner_t rd_owner;
+
+    logic [ADDR_WIDTH-1:0] rd_addr_lat;
+
+    //arbitration
+    logic       arb_rd_valid;
+    rd_owner_t  arb_rd_winner;
+
+    always_comb begin
+        arb_rd_valid    = 1'b0;
+        arb_rd_winner   = RD_OWNER_IC;
+
+        if (dcache_req) begin
+            arb_rd_valid    = 1'b1;
+            arb_rd_winner   = RD_OWNER_DC;
+        end else if (icache_req) begin
+            arb_rd_valid    = 1'b1;
+            arb_rd_winner   = RD_OWNER_IC;
+        end
+    end
+
+    //read next state fsm
+    always_comb begin
+        rd_state_next   = rd_state;
+
+        case (rd_state)
+            RD_IDLE: begin
+                if (arb_rd_valid)
+                    rd_state_next   = RD_ADDR;
+            end
+
+            RD_ADDR: begin
+                if (m_axi_arvalid && m_axi_arready)
+                    rd_state_next   = RD_DATA;
+            end
+
+            RD_DATA: begin
+                if (m_axi_rvalid && m_axi_rlast)
+                    rd_state_next   = RD_IDLE;
+            end
+        endcase
+    end
+
+    //read fsm register
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            rd_state    <= RD_IDLE;
+            rd_owner    <= RD_OWNER_IC;
+            rd_addr_lat <= '0;
+        end else begin
+            rd_state    <= rd_state_next;
+
+            if (rd_state == RD_IDLE && arb_rd_valid) begin
+                rd_owner    <= arb_rd_winner;
+                
+                if (arb_rd_winner == RD_OWNER_IC)
+                    rd_addr_lat <= icache_addr;
+                else 
+                    rd_addr_lat <= dcache_addr;
+            end
+        end
+    end
+
+    //read output
+    assign icache_grant = (rd_state == RD_IDLE) && arb_rd_valid && (arb_rd_winner == RD_OWNER_IC);
+    assign dcache_grant = (rd_state == RD_IDLE) && arb_rd_valid && (arb_rd_winner == RD_OWNER_DC);
+
+    //AXI4 AR channel: WRAP burst, 4 beats x 4 bytes
+    assign m_axi_arvalid = (rd_state == RD_ADDR);
+    assign m_axi_araddr  = rd_addr_lat;
+    assign m_axi_arlen   = AXI_LEN_4BEAT;
+    assign m_axi_arsize  = AXI_SIZE_4B;
+    assign m_axi_arburst = AXI_BURST_WRAP;
+
+    //AXI4 R channel
+    assign m_axi_rready = (rd_state == RD_DATA);
+
+    //route R data to the cache that owns the channel
+    always_comb begin
+        icache_rdata = '0;
+        icache_valid = 1'b0;
+        icache_last  = 1'b0;
+
+        dcache_rdata = '0;
+        dcache_valid = 1'b0;
+        dcache_last  = 1'b0;
+
+        if (rd_state == RD_DATA) begin
+            if (rd_owner == RD_OWNER_IC) begin
+                icache_rdata = m_axi_rdata;
+                icache_valid = m_axi_rvalid;
+                icache_last  = m_axi_rlast;
+            end else begin
+                dcache_rdata = m_axi_rdata;
+                dcache_valid = m_axi_rvalid;
+                dcache_last  = m_axi_rlast;
+            end
+        end
+    end
 endmodule
