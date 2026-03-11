@@ -43,6 +43,10 @@ package axi_pkg;
     localparam logic [2:0] AXI_SIZE_32B  = 3'b101;
     localparam logic [2:0] AXI_SIZE_64B  = 3'b110;
     localparam logic [2:0] AXI_SIZE_128B = 3'b111;
+
+    //burst length
+    localparam logic [7:0] AXI_LEN_SINGLE = 8'd0; 
+    localparam logic [7:0] AXI_LEN_4BEAT  = 8'd3;
     
     //protection attributes
     localparam logic [2:0] AXI_PROT_UNPRIVILEGED = 3'b000;
