@@ -271,7 +271,7 @@ module dcache
                         //miss but have data in write buffer
                         end else if (fwd_full_cover) begin
                             rdata           = fwd_data;
-                            dcache_valid     = 1'b1;
+                            dcache_valid    = 1'b1;
                             dcache_ready    = 1'b1;
                         //miss real -> stall 
                         end
@@ -295,7 +295,7 @@ module dcache
             end
 
             REFILL_REQ: begin
-                //wait for arb grant
+                
             end
 
             REFILL_DATA: begin
