@@ -14,3 +14,4 @@ webtalk*.jou
 *.backup.*
 *~
 .DS_Store
+.claudeignore
