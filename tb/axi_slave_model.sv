@@ -220,6 +220,7 @@ module axi_slave_model
                 WR_IDLE: begin
                     if (s_axi_awvalid) begin
                         wr_addr_lat <= s_axi_awaddr;
+
                         if (VERBOSE)
                             $display("[MEM][WR ] addr=0x%08h  @%0t",
                                      s_axi_awaddr, $time);
