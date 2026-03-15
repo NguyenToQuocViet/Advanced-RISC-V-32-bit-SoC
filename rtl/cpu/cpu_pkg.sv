@@ -21,7 +21,7 @@
 // Version      : 1.0
 // -----------------------------------------------------------------------------
 
-package riscv_pkg;
+package cpu_pkg;
     //base parameters
     localparam DATA_WIDTH   = 32; 
     localparam ADDR_WIDTH   = 32;
