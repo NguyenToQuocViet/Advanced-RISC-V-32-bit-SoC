@@ -18,7 +18,7 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-03-15
-// Version      : 1.0
+// Version      : 1.1
 // -----------------------------------------------------------------------------
 
 module fcu
@@ -73,14 +73,15 @@ module fcu
                 pc_reg  <= ex_correct_pc;
             //priority 2: Update normal PC
             //phai stall de khong cap nhat them pc + 4
-            else if (!stall && cache_valid)
+            //cache_ready: tranh advance PC khi cache dang busy (CWF trong REFILL_DATA)
+            else if (!stall && cache_valid && cache_ready)
                 pc_reg  <= next_pc;
         end
     end
     
     //output to icache
-    assign if_pc    = pc_reg;
-    assign if_req   = 1'b1;     //tam thoi luon fetch lenh
+    assign if_pc  = pc_reg;
+    assign if_req = !stall && !ex_mispredict;
 
     //output to IF_ID Pipeline
     assign instr_o          = instr_i;
