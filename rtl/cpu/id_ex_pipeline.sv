@@ -48,6 +48,8 @@ module id_ex_pipeline
     input logic [DATA_WIDTH-1:0]    imm_i,
 
     input logic [ADDR_WIDTH-1:0]    pc_i,
+    input logic [4:0]               rs1_i,
+    input logic [4:0]               rs2_i,
     input logic [4:0]               rd_i,
     input logic                     pred_taken_i,
 
@@ -68,6 +70,8 @@ module id_ex_pipeline
     output logic [DATA_WIDTH-1:0]   imm_o,
 
     output logic [ADDR_WIDTH-1:0]   pc_o,
+    output logic [4:0]              rs1_o,
+    output logic [4:0]              rs2_o,
     output logic [4:0]              rd_o,
     output logic                    pred_taken_o
 );
@@ -88,6 +92,8 @@ module id_ex_pipeline
     logic [DATA_WIDTH-1:0]  imm;
 
     logic [ADDR_WIDTH-1:0]  pc;
+    logic [4:0]             rs1;
+    logic [4:0]             rs2;
     logic [4:0]             rd;
     logic                   pred_taken;
 
@@ -108,6 +114,8 @@ module id_ex_pipeline
             rdata2      <= '0;
             imm         <= '0;
             pc          <= '0;
+            rs1         <= '0;
+            rs2         <= '0;
             rd          <= '0;
             pred_taken  <= 1'b0;
         end else begin
@@ -126,6 +134,8 @@ module id_ex_pipeline
                 rdata2      <= '0;
                 imm         <= '0;
                 pc          <= '0;
+                rs1         <= '0;
+                rs2         <= '0;
                 rd          <= '0;
                 pred_taken  <= 1'b0;
             end else if (stall) begin
@@ -143,6 +153,8 @@ module id_ex_pipeline
                 rdata2      <= rdata2;
                 imm         <= imm;
                 pc          <= pc;
+                rs1         <= rs1;
+                rs2         <= rs2;
                 rd          <= rd;
                 pred_taken  <= pred_taken;
             end else begin
@@ -160,6 +172,8 @@ module id_ex_pipeline
                 rdata2      <= rdata2_i;
                 imm         <= imm_i;
                 pc          <= pc_i;
+                rs1         <= rs1_i;
+                rs2         <= rs2_i;
                 rd          <= rd_i;
                 pred_taken  <= pred_taken_i;
             end
@@ -180,6 +194,8 @@ module id_ex_pipeline
     assign rdata2_o     = rdata2;
     assign imm_o        = imm;
     assign pc_o         = pc;
+    assign rs1_o        = rs1;
+    assign rs2_o        = rs2;
     assign rd_o         = rd;
     assign pred_taken_o = pred_taken;
 endmodule
