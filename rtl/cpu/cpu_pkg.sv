@@ -44,4 +44,20 @@ package cpu_pkg;
     localparam WEAKLY_NT    = 2'b01;
     localparam WEAKLY_T     = 2'b10;
     localparam STRONGLY_T   = 2'b11;
+
+    //OPCODE
+    localparam OP_R         = 7'b0110011;
+
+    localparam OP_I_ALU     = 7'b0010011;
+    localparam OP_I_LOAD    = 7'b0000011;
+    localparam OP_I_JALR    = 7'b1100111;
+
+    localparam OP_S         = 7'b0100011;
+
+    localparam OP_B         = 7'b1100011;
+    
+    localparam OP_U_LUI     = 7'b0110111;
+    localparam OP_U_AUIPC   = 7'b0010111;
+    
+    localparam OP_J         = 7'b1101111;
 endpackage
