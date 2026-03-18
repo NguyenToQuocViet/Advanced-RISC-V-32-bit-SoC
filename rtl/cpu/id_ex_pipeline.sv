@@ -52,6 +52,7 @@ module id_ex_pipeline
     input logic [4:0]               rs2_i,
     input logic [4:0]               rd_i,
     input logic                     pred_taken_i,
+    input logic [ADDR_WIDTH-1:0]    pred_target_i,
 
     //ex interface
     output logic [3:0]              alu_op_o,
@@ -73,7 +74,8 @@ module id_ex_pipeline
     output logic [4:0]              rs1_o,
     output logic [4:0]              rs2_o,
     output logic [4:0]              rd_o,
-    output logic                    pred_taken_o
+    output logic                    pred_taken_o,
+    output logic [ADDR_WIDTH-1:0]   pred_target_o
 );
     //pipeline register
     logic [3:0]             alu_op;
@@ -96,6 +98,7 @@ module id_ex_pipeline
     logic [4:0]             rs2;
     logic [4:0]             rd;
     logic                   pred_taken;
+    logic [ADDR_WIDTH-1:0]  pred_target;
 
     //update pipeline register
     always_ff @(posedge clk or negedge rst_n) begin
@@ -116,8 +119,9 @@ module id_ex_pipeline
             pc          <= '0;
             rs1         <= '0;
             rs2         <= '0;
-            rd          <= '0;
-            pred_taken  <= 1'b0;
+            rd           <= '0;
+            pred_taken   <= 1'b0;
+            pred_target  <= '0;
         end else begin
             if (flush) begin
                 alu_op      <= '0;
@@ -136,8 +140,9 @@ module id_ex_pipeline
                 pc          <= '0;
                 rs1         <= '0;
                 rs2         <= '0;
-                rd          <= '0;
-                pred_taken  <= 1'b0;
+                rd           <= '0;
+                pred_taken   <= 1'b0;
+                pred_target  <= '0;
             end else if (stall) begin
                 alu_op      <= alu_op;
                 alu_src     <= alu_src;
@@ -155,8 +160,9 @@ module id_ex_pipeline
                 pc          <= pc;
                 rs1         <= rs1;
                 rs2         <= rs2;
-                rd          <= rd;
-                pred_taken  <= pred_taken;
+                rd           <= rd;
+                pred_taken   <= pred_taken;
+                pred_target  <= pred_target;
             end else begin
                 alu_op      <= alu_op_i;
                 alu_src     <= alu_src_i;
@@ -174,8 +180,9 @@ module id_ex_pipeline
                 pc          <= pc_i;
                 rs1         <= rs1_i;
                 rs2         <= rs2_i;
-                rd          <= rd_i;
-                pred_taken  <= pred_taken_i;
+                rd           <= rd_i;
+                pred_taken   <= pred_taken_i;
+                pred_target  <= pred_target_i;
             end
         end
     end
@@ -197,5 +204,6 @@ module id_ex_pipeline
     assign rs1_o        = rs1;
     assign rs2_o        = rs2;
     assign rd_o         = rd;
-    assign pred_taken_o = pred_taken;
+    assign pred_taken_o  = pred_taken;
+    assign pred_target_o = pred_target;
 endmodule
