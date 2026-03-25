@@ -53,17 +53,18 @@ module icache
     assign pc_idx       = pc[LINE_OFF_BITS +: IC_IDX_BITS];     //11 - 4
     assign pc_tag       = pc[ADDR_WIDTH-1 -: IC_TAG_BITS];      //31 - 12 
 
-    //storage
-    logic [IC_TAG_BITS-1:0] cache_tag [IC_SETS];
-    logic [DATA_WIDTH-1:0] cache_data [IC_SETS][WORDS_PER_LINE];
-    logic [IC_SETS-1:0] cache_valid;    //for simple resest, not large
+    //storage — cache_data is 1D (line-wide) to avoid Vivado multi-dim RAM warning
+    localparam LINE_WIDTH = DATA_WIDTH * WORDS_PER_LINE;
+    logic [IC_TAG_BITS-1:0] cache_tag  [IC_SETS];
+    logic [LINE_WIDTH-1:0]  cache_data [IC_SETS];   //each entry = 1 full cache line
+    logic [IC_SETS-1:0]     cache_valid;
 
     //comparator
     logic cache_hit;
     logic [DATA_WIDTH-1:0] hit_data;
 
     assign cache_hit = cache_valid[pc_idx] && (cache_tag[pc_idx] == pc_tag);
-    assign hit_data  = cache_data[pc_idx][pc_word_sel];
+    assign hit_data  = cache_data[pc_idx][pc_word_sel*DATA_WIDTH +: DATA_WIDTH];
 
     //refill buffer
     logic [DATA_WIDTH-1:0]      rf_buffer [WORDS_PER_LINE];
@@ -112,7 +113,7 @@ module icache
         endcase
     end
 
-    //FSM: control registers with async reset
+    //FSM: control registers — only signals that NEED async reset
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state       <= IDLE;
@@ -123,19 +124,13 @@ module icache
 
             case (state)
                 IDLE: begin
-                    if (if_req && !cache_hit) begin
-                        rf_tag      <= pc_tag;
-                        rf_idx      <= pc_idx;
-                        rf_word_sel <= pc_word_sel;
-                        rf_valid    <= '0;
-                    end
+                    if (if_req && !cache_hit)
+                        rf_valid <= '0;
                 end
 
                 REFILL_DATA: begin
-                    if (arb_valid) begin
+                    if (arb_valid)
                         rf_valid[rf_word_sel] <= 1'b1;
-                        rf_word_sel           <= rf_word_sel + 1'b1;
-                    end
                 end
 
                 REFILL_DONE: begin
@@ -146,18 +141,28 @@ module icache
         end
     end
 
-    //FSM: data storage without async reset — allows LUTRAM inference
+    //FSM: data + address registers — no async reset, allows LUTRAM inference
     always_ff @(posedge clk) begin
         case (state)
+            IDLE: begin
+                if (if_req && !cache_hit) begin
+                    rf_tag      <= pc_tag;
+                    rf_idx      <= pc_idx;
+                    rf_word_sel <= pc_word_sel;
+                end
+            end
+
             REFILL_DATA: begin
-                if (arb_valid)
+                if (arb_valid) begin
                     rf_buffer[rf_word_sel] <= arb_rdata;
+                    rf_word_sel            <= rf_word_sel + 1'b1;
+                end
             end
 
             REFILL_DONE: begin
                 cache_tag[rf_idx] <= rf_tag;
                 for (int w = 0; w < WORDS_PER_LINE; w++)
-                    cache_data[rf_idx][w] <= rf_buffer[w];
+                    cache_data[rf_idx][w*DATA_WIDTH +: DATA_WIDTH] <= rf_buffer[w];
             end
         endcase
     end
