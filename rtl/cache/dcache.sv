@@ -74,7 +74,9 @@ module dcache
 
     //storage (2-way)
     logic [DC_TAG_BITS-1:0] cache_tag  [DC_SETS][DC_WAYS];
-    logic [DATA_WIDTH-1:0] cache_data [DC_SETS][DC_WAYS][WORDS_PER_LINE];
+    //packed cache line: [DC_SETS][DC_WAYS] of (WORDS_PER_LINE x DATA_WIDTH)-bit word
+    //2D instead of 3D — avoids Vivado 3D-RAM inference warning
+    logic [DATA_WIDTH*WORDS_PER_LINE-1:0] cache_data [DC_SETS][DC_WAYS];
     logic [DC_SETS-1:0][DC_WAYS-1:0] cache_valid;   //for simple reset
     logic [DC_SETS-1:0] lru;
 
@@ -91,7 +93,7 @@ module dcache
 
         cache_hit   = |way_hit;
         hit_way     = way_hit[1];   //optimize
-        cache_rdata = cache_data[addr_idx][hit_way][addr_word_sel];
+        cache_rdata = cache_data[addr_idx][hit_way][addr_word_sel*DATA_WIDTH +: DATA_WIDTH];
     end
 
     //store-to-load forwarding merge
@@ -213,7 +215,7 @@ module dcache
                             if (cache_hit && !wb_full) begin
                                 for (int b = 0; b < STRB_WIDTH; b++) begin
                                     if (wstrb[b])
-                                        cache_data[addr_idx][hit_way][addr_word_sel][b*8 +: 8] <= wdata[b*8 +: 8];
+                                        cache_data[addr_idx][hit_way][addr_word_sel*DATA_WIDTH + b*8 +: 8] <= wdata[b*8 +: 8];
                                 end
                                 lru[addr_idx] <= ~hit_way;
                             end
@@ -238,7 +240,7 @@ module dcache
                     cache_valid[rf_idx][evict_way] <= 1'b1;
 
                     for (int w = 0; w < WORDS_PER_LINE; w++)
-                        cache_data[rf_idx][evict_way][w] <= rf_buffer[w];
+                        cache_data[rf_idx][evict_way][w*DATA_WIDTH +: DATA_WIDTH] <= rf_buffer[w];
 
                     lru[rf_idx] <= ~evict_way;
                     rf_valid    <= '0;
