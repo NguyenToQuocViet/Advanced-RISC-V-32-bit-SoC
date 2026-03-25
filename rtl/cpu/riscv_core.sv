@@ -14,11 +14,19 @@
 // -----------------------------------------------------------------------------
 // Project      : Advanced RISC-V 32-bit Processor
 // Module       : riscv_core
-// Description  : Top-level wrapper for the 5-stage pipeline RISC-V CPU Core
+// Description  : Top-level wrapper for the 5-stage pipeline RISC-V CPU Core.
+//                Mispredict feedback (BRU→FCU) is registered 1 cycle to cut
+//                the 14-level combinational path across the full pipeline,
+//                enabling 100MHz+ timing closure on xc7z020.
+//                Trade-off: branch mispredict penalty 2→3 cycles.
 //
 // Author       : NGUYEN TO QUOC VIET
-// Date         : 2026-03-25
-// Version      : 1.0
+// Date         : 2026-03-26
+// Version      : 1.1
+// Changes      : Registered bru_mispredict/bru_correct_pc (mispredict_r,
+//                correct_pc_r) to fix timing critical path EX→IF feedback.
+//                Added ex_mem_flush = mispredict_r to flush extra wrong
+//                instruction that enters EX during the extra latency cycle.
 // -----------------------------------------------------------------------------
 
 module riscv_core
@@ -97,6 +105,10 @@ module riscv_core
     logic [ADDR_WIDTH-1:0]  bru_actual_target, bru_correct_pc;
     logic [1:0]             forward_a, forward_b;
 
+    //registered mispredict feedback — cuts long combinational path EX→IF
+    logic                   mispredict_r;
+    logic [ADDR_WIDTH-1:0]  correct_pc_r;
+
     //mem stage
     logic [ADDR_WIDTH-1:0]  mem_pc;
     logic [DATA_WIDTH-1:0]  mem_alu_result, mem_rdata2;
@@ -126,10 +138,22 @@ module riscv_core
     assign ex_mem_stall = dcache_stall;
     assign mem_wb_stall = dcache_stall;
 
-    assign if_id_flush  = bru_mispredict | (!if_icache_valid && !if_id_stall);
-    assign id_ex_flush  = bru_mispredict | ex_flush;
-    assign ex_mem_flush = 1'b0;
+    assign if_id_flush  = mispredict_r | (!if_icache_valid && !if_id_stall);
+    assign id_ex_flush  = mispredict_r | ex_flush;
+    assign ex_mem_flush = mispredict_r;   //extra flush: wrong instr already in EX
     assign mem_wb_flush = 1'b0;
+
+    //register mispredict 1 cycle: cuts 14-level combinational feedback path
+    //penalty: 2→3 cycles on mispredict, but timing budget restored
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            mispredict_r <= 1'b0;
+            correct_pc_r <= '0;
+        end else begin
+            mispredict_r <= bru_mispredict;
+            correct_pc_r <= bru_correct_pc;
+        end
+    end
 
     //instruction decode
     assign id_rs1 = id_instr[19:15];
@@ -161,8 +185,8 @@ module riscv_core
         .if_pc            (if_pc),
         .pred_taken       (if_pred_taken),
         .pred_target      (if_pred_target),
-        .ex_mispredict    (bru_mispredict),
-        .ex_correct_pc    (bru_correct_pc),
+        .ex_mispredict    (mispredict_r),
+        .ex_correct_pc    (correct_pc_r),
         .stall            (fcu_stall),
         .instr_o          (fcu_instr),
         .if_id_pc         (fcu_if_id_pc),

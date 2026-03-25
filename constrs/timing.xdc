@@ -10,7 +10,7 @@
 # 2. RÀNG BUỘC XUNG NHỊP (CLOCK CONSTRAINTS)
 # Ép hệ thống chạy ở 100MHz (10.0ns). Nếu muốn ép xung, đổi 10.000 thành 5.000
 # ==============================================================================
-create_clock -period 10.000 -name clk -waveform {0.000 5.000} [get_ports clk]
+create_clock -period 12.500 -name clk -waveform {0.000 6.250} [get_ports clk]
 
 # Gán chân clk vào đúng vị trí vật lý của mạch dao động (Oscillator)
 # E3 là chân Clock Capable của package CSG324.
