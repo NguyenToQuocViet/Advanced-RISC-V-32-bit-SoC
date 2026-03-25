@@ -112,7 +112,7 @@ module icache
         endcase
     end
 
-    //FSM: register state + datapath
+    //FSM: control registers with async reset
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state       <= IDLE;
@@ -121,44 +121,45 @@ module icache
         end else begin
             state <= next_state;
 
-            case (state) 
+            case (state)
                 IDLE: begin
-                    //neu miss -> latch dia chi miss cho refill
                     if (if_req && !cache_hit) begin
                         rf_tag      <= pc_tag;
                         rf_idx      <= pc_idx;
-                        rf_word_sel <= pc_word_sel; //refill tu critical word, khong phai tu 0
+                        rf_word_sel <= pc_word_sel;
                         rf_valid    <= '0;
                     end
                 end
 
-                REFILL_REQ: begin
-
-                end
-
-
                 REFILL_DATA: begin
-                    //moi clock ghi 1 word vao refill buffer
                     if (arb_valid) begin
-                        rf_buffer[rf_word_sel]  <= arb_rdata;
-                        rf_valid[rf_word_sel]   <= 1'b1;
-
-                        rf_word_sel             <= rf_word_sel + 1'b1;  //moi cycle tang len 1, tu wrap ve khi tran bit
+                        rf_valid[rf_word_sel] <= 1'b1;
+                        rf_word_sel           <= rf_word_sel + 1'b1;
                     end
                 end
 
                 REFILL_DONE: begin
-                    //ghi 1 luc toan bo refill buffer vao SRAM
-                    cache_tag[rf_idx]   <= rf_tag;
                     cache_valid[rf_idx] <= 1'b1;
-
-                    for (int w = 0; w < WORDS_PER_LINE; w++)
-                        cache_data[rf_idx][w] <= rf_buffer[w];
-
-                    rf_valid    <= '0;    //clear refill buffer
+                    rf_valid            <= '0;
                 end
             endcase
         end
+    end
+
+    //FSM: data storage without async reset — allows LUTRAM inference
+    always_ff @(posedge clk) begin
+        case (state)
+            REFILL_DATA: begin
+                if (arb_valid)
+                    rf_buffer[rf_word_sel] <= arb_rdata;
+            end
+
+            REFILL_DONE: begin
+                cache_tag[rf_idx] <= rf_tag;
+                for (int w = 0; w < WORDS_PER_LINE; w++)
+                    cache_data[rf_idx][w] <= rf_buffer[w];
+            end
+        endcase
     end
 
     //FSM: output logic
