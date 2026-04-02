@@ -15,3 +15,6 @@ webtalk*.jou
 *~
 .DS_Store
 .claudeignore
+report.pdf
+report.tex
+report.synctex.gz
