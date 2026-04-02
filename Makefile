@@ -23,15 +23,15 @@ lint:
 	@echo "Running RTL Linting..."
 	cd work && $(VIVADO) $(MODE) -source ../tcl/lint.tcl
 
-# Run simulation (batch mode)
+# Run simulation (batch mode) — auto-detect top, or: make run TB=alu_tb
 run:
 	@echo "Running simulation..."
-	cd work && $(VIVADO) $(MODE) -source ../tcl/sim.tcl
+	cd work && $(VIVADO) $(MODE) -source ../tcl/sim.tcl $(if $(TB),-tclargs $(TB),)
 
-# Simulation with waveform GUI
+# Simulation with waveform GUI — auto-detect top, or: make sim TB=alu_tb
 sim:
 	@echo "Opening simulation waveform..."
-	cd work && $(VIVADO) -mode gui -source ../tcl/sim.tcl
+	cd work && $(VIVADO) -mode gui -source ../tcl/sim.tcl $(if $(TB),-tclargs $(TB),)
 
 # Synthesis
 synth:
