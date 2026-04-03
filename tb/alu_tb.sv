@@ -116,7 +116,7 @@ module alu_tb;
         // --- ALU_SLL (shift left logical) ---
         // normal shifts
         check_result(ALU_SLL, 1, 4, 16);
-        check_result(ALU_SLL, 36, 5, 1152)
+        check_result(ALU_SLL, 36, 5, 1152);
         check_result(ALU_SLL, 1, 0, 1);
         check_result(ALU_SLL, 32'h0000_0001, 31, 32'h8000_0000);
 
