@@ -63,6 +63,16 @@ module fcu
         else
             next_pc = pc_reg + 4;
     end
+    
+    //1 cycle wait flush/redirect
+    logic ignore_valid;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            ignore_valid    <= 1'b0;
+        else
+            ignore_valid    <= ex_mispredict;
+    end
 
     //PC Update
     always_ff @(posedge clk or negedge rst_n) begin
@@ -75,7 +85,8 @@ module fcu
             //priority 2: Update normal PC
             //phai stall de khong cap nhat them pc + 4
             //cache_ready: tranh advance PC khi cache dang busy (CWF trong REFILL_DATA)
-            else if (!stall && cache_valid && cache_ready)
+            //them ignore_valid
+            else if (!stall && cache_valid && cache_ready && !ignore_valid)
                 pc_reg  <= next_pc;
         end
     end
@@ -85,8 +96,8 @@ module fcu
     assign if_req = !stall && !ex_mispredict;
 
     //output to IF_ID Pipeline
-    assign instr_o          = instr_i;
-    assign if_id_pc         = pc_reg;
-    assign if_id_pred_taken  = ex_mispredict ? 1'b0  : pred_taken;
-    assign if_id_pred_target = ex_mispredict ? '0    : pred_target;
+    assign instr_o              = (ex_mispredict || ignore_valid) ? NOP_INSTR : instr_i;
+    assign if_id_pc             = pc_reg;
+    assign if_id_pred_taken     = ex_mispredict ? 1'b0  : pred_taken;
+    assign if_id_pred_target    = ex_mispredict ? '0    : pred_target;
 endmodule
