@@ -11,10 +11,14 @@ add_files ../rtl
 add_files -fileset constrs_1 -norecurse ../constrs/timing.xdc
 set_property file_type SystemVerilog [get_files -filter {NAME =~ *.sv}]
 
-# 2. Nạp toàn bộ cây thư mục Testbench
-if {[file exists ../tb]} {
-    add_files -fileset sim_1 ../tb
+# 2. Nạp testbench: direct_test/ va riscv_test/ (axi_slave_model chi add 1 lan tu direct_test)
+if {[file exists ../tb/direct_test]} {
+    add_files -fileset sim_1 ../tb/direct_test
     set_property file_type SystemVerilog [get_files -of_objects [get_filesets sim_1] -filter {NAME =~ *.sv}]
+}
+if {[file exists ../tb/riscv_test/rv32ui_tb.sv]} {
+    add_files -fileset sim_1 ../tb/riscv_test/rv32ui_tb.sv
+    set_property file_type SystemVerilog [get_files ../tb/riscv_test/rv32ui_tb.sv]
 }
 
 # 3. Yêu cầu Vivado tự động tính toán thứ tự biên dịch (Tự nhận diện _pkg.sv)
