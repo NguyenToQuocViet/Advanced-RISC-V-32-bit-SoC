@@ -59,7 +59,6 @@ module riscv_core
     logic                   load_use_stall, dcache_stall, ex_flush;
     logic                   fcu_stall, if_id_stall, id_ex_stall, ex_mem_stall, mem_wb_stall;
     logic                   if_id_flush, id_ex_flush, ex_mem_flush, mem_wb_flush;
-    logic                   cwf_consumed;   //CWF: tracks that critical word has been captured
 
     //if stage
     logic                   if_pred_taken;
@@ -139,25 +138,7 @@ module riscv_core
     assign ex_mem_stall = dcache_stall;
     assign mem_wb_stall = dcache_stall;
 
-    //CWF consumed register:
-    //set  when the CWF instruction (valid=1, ready=0) has been captured into IF/ID
-    //clear when cache finishes (ready=1) or on mispredict redirect
-    //while set, IF/ID is flushed every cycle to prevent duplicate instructions
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            cwf_consumed <= 1'b0;
-        else if (if_icache_ready || mispredict_r)
-            cwf_consumed <= 1'b0;
-        else if (if_icache_valid && !if_icache_ready && !if_id_stall)
-            cwf_consumed <= 1'b1;
-    end
-
-    //if_id_flush truth table (excluding mispredict):
-    //  valid=0,cwf=0 (miss)         -> flush=1  (insert NOP during refill)
-    //  valid=1,cwf=0 (hit/CWF-1st) -> flush=0  (latch instruction)
-    //  valid=1,cwf=1 (CWF-2nd+)    -> flush=1  (prevent duplicate)
-    //  any,         stall=1         -> flush=0  (stall wins, hold content)
-    assign if_id_flush  = mispredict_r | ((!if_icache_valid || cwf_consumed) && !if_id_stall);
+    //CWF + if_id_flush now inside FCU — removed from here
     assign id_ex_flush  = mispredict_r | ex_flush;
     assign ex_mem_flush = mispredict_r;   //extra flush: wrong instr already in EX
     assign mem_wb_flush = 1'b0;
@@ -210,7 +191,8 @@ module riscv_core
         .instr_o          (fcu_instr),
         .if_id_pc         (fcu_if_id_pc),
         .if_id_pred_taken (fcu_if_id_pred_taken),
-        .if_id_pred_target(fcu_if_id_pred_target)
+        .if_id_pred_target(fcu_if_id_pred_target),
+        .if_id_flush      (if_id_flush)
     );
 
     //dbp instance
@@ -333,10 +315,13 @@ module riscv_core
     );
 
     //forwarding muxes
-    assign fw_src_a = (forward_a == 2'b10) ? mem_alu_result : 
+    logic [DATA_WIDTH-1:0] mem_fwd_val;
+    assign mem_fwd_val  = (mem_wb_sel == WB_PC4) ? (mem_pc + 32'd4) : mem_alu_result;
+
+    assign fw_src_a = (forward_a == 2'b10) ? mem_fwd_val : 
                       (forward_a == 2'b01) ? wb_wdata : ex_rdata1;
 
-    assign fw_src_b = (forward_b == 2'b10) ? mem_alu_result : 
+    assign fw_src_b = (forward_b == 2'b10) ? mem_fwd_val : 
                       (forward_b == 2'b01) ? wb_wdata : ex_rdata2;
 
     //alu operand muxes

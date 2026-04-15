@@ -18,7 +18,9 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-03-15
-// Version      : 1.2 (optimize by remove redundant guard, documenting)
+// Version      : 1.3
+// Changes v1.2 : optimize by remove redundant guard, documenting
+// Changes v1.3 : migrate cwf_consumed + if_id_flush from riscv_core.sv
 // -----------------------------------------------------------------------------
 
 module fcu
@@ -51,7 +53,8 @@ module fcu
     output logic [DATA_WIDTH-1:0]   instr_o,
     output logic [ADDR_WIDTH-1:0]   if_id_pc,
     output logic                    if_id_pred_taken,
-    output logic [ADDR_WIDTH-1:0]   if_id_pred_target
+    output logic [ADDR_WIDTH-1:0]   if_id_pred_target,
+    output logic                    if_id_flush         //to if_id_pipeline.flush
 );
     //PC Control
     logic [ADDR_WIDTH-1:0] pc_reg;
@@ -107,4 +110,27 @@ module fcu
     assign if_id_pc             = pc_reg;
     assign if_id_pred_taken     = /*ex_mispredict ? 1'b0  :*/ pred_taken;
     assign if_id_pred_target    = /*ex_mispredict ? '0    :*/ pred_target;
+
+    //cwf_consumed: CWF instr da duoc IF/ID capture
+    //set: valid=1, ready=0, !stall -> capture 1st cycle
+    //clear: ready=1 (refill done) or mispredict (redirect, discard)
+    //prevent duplicate: CWF instr chi latch vao IF/ID dung 1 lan
+    logic cwf_consumed;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            cwf_consumed <= 1'b0;
+        else if (cache_ready || ex_mispredict)
+            cwf_consumed <= 1'b0;
+        else if (cache_valid && !cache_ready && !stall)
+            cwf_consumed <= 1'b1;
+    end
+
+    //if_id_flush truth table
+    //mispredict=1                -> flush (redirect)
+    //valid=0, cwf=0, !stall      -> flush (miss, NOP)
+    //valid=1, cwf=0, !stall      -> no flush (hit / CWF 1st)
+    //valid=1, cwf=1, !stall      -> flush (prevent duplicate CWF)
+    //stall=1                     -> no flush (stall wins)
+    assign if_id_flush = ex_mispredict | ((!cache_valid || cwf_consumed) && !stall);
 endmodule
