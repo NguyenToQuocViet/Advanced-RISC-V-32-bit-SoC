@@ -18,7 +18,7 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-03-15
-// Version      : 1.1
+// Version      : 1.2 (optimize by remove redundant guard, documenting)
 // -----------------------------------------------------------------------------
 
 module fcu
@@ -56,7 +56,10 @@ module fcu
     //PC Control
     logic [ADDR_WIDTH-1:0] pc_reg;
     logic [ADDR_WIDTH-1:0] next_pc;
-
+    
+    //NOTE: next_pc = pc tiep theo, hoac la pc duoc du doan, hoac la pc + 4
+    /*Neu dat ex_correct_pc o day (redirect path) -> next_pc bi gate boi nhieu tin hieu trong do co STALL -> neu cung luc vua STALL
+    vua REDIRECT -> STALL win, PC khong REDIRECT -> WRONG!*/
     always_comb begin
         if (pred_taken)
             next_pc = pred_target;
@@ -64,7 +67,8 @@ module fcu
             next_pc = pc_reg + 4;
     end
     
-    //1 cycle wait flush/redirect
+    //1 cycle delay cho redirect
+    //cycle sau redirect flush=0 nhung icache REFILL DONE tra ve rf_buffer KHONG CHECK TAG -> WRONG-PATH instruction
     logic ignore_valid;
 
     always_ff @(posedge clk or negedge rst_n) begin
@@ -79,13 +83,16 @@ module fcu
         if (!rst_n) begin
             pc_reg  <= PC_RESET_VEC;
         end else begin
-            //priority 1: REDIRECT PC
+            //PRIORITY 1: REDIRECT OC
             if (ex_mispredict) 
                 pc_reg  <= ex_correct_pc;
-            //priority 2: Update normal PC
-            //phai stall de khong cap nhat them pc + 4
-            //cache_ready: tranh advance PC khi cache dang busy (CWF trong REFILL_DATA)
-            //them ignore_valid
+            //PRIORITY 2: NEXT PC
+            /*stall: pipeline dang stall, neu co fetch cung khong con khong gian de execute 
+              cache_valid: instr co y nghia
+              cache_ready: CWF GUARD -> I-Cache tra ve cache_valid tu luc critical-word duoc tra ve (co the chua fully cache line va
+              dang refill trong background) -> khong duoc advance PC
+              ignore_valid: cycle truoc la redirect, data cua icache dang bi dirty -> wait 1 cycle
+            */
             else if (!stall && cache_valid && cache_ready && !ignore_valid)
                 pc_reg  <= next_pc;
         end
@@ -93,11 +100,11 @@ module fcu
     
     //output to icache
     assign if_pc  = pc_reg;
-    assign if_req = !stall && !ex_mispredict;
+    assign if_req = !stall && !ex_mispredict;   //!stall de save power | !ex_mispredict = PC sai -> req lenh sai -> waste cycle for wrong path refill
 
     //output to IF_ID Pipeline
-    assign instr_o              = (ex_mispredict || ignore_valid) ? NOP_INSTR : instr_i;
+    assign instr_o              = (/*ex_mispredict ||*/ ignore_valid) ? NOP_INSTR : instr_i; //guard wrong-path instruction from cache
     assign if_id_pc             = pc_reg;
-    assign if_id_pred_taken     = ex_mispredict ? 1'b0  : pred_taken;
-    assign if_id_pred_target    = ex_mispredict ? '0    : pred_target;
+    assign if_id_pred_taken     = /*ex_mispredict ? 1'b0  :*/ pred_taken;
+    assign if_id_pred_target    = /*ex_mispredict ? '0    :*/ pred_target;
 endmodule
