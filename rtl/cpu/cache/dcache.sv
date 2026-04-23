@@ -284,7 +284,7 @@ module dcache
                             rdata           = fwd_data;
                             dcache_valid    = 1'b1;
                             dcache_ready    = 1'b1;
-                        //miss real -> stall 
+                        //miss real -> stall
                         end
                     //store
                     end else begin
@@ -320,8 +320,13 @@ module dcache
             end
 
             REFILL_DONE: begin
+                //tag-validated output: chan race khi pipeline early-advance qua addr khac
+                //sau khi CWF da serve request truoc (cung pattern voi icache REFILL_DONE)
                 rdata           = rf_merged_rdata;
-                dcache_valid    = 1'b1;
+                if ((rf_tag == addr_tag) && (rf_idx == addr_idx))
+                    dcache_valid = 1'b1;
+                else
+                    dcache_valid = 1'b0;
                 dcache_ready    = 1'b1;
             end
         endcase
