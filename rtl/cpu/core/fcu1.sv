@@ -18,28 +18,31 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-03-15
-// Version      : 1.3
+// Version      : 2.0
 // Changes v1.2 : optimize by remove redundant guard, documenting
 // Changes v1.3 : migrate cwf_consumed + if_id_flush from riscv_core.sv
+// Changes v2.0 : reconstruct all the pipeline to ASIC friendly. IF now split into IF1 IF2. IF1 don't have data from cache 
+//                and prediction so must advance in blind, now we have to redirect from IF2 if branch mispredict FROM ASSUMPTION
+//                (not taken)
 // -----------------------------------------------------------------------------
 
-module fcu
+module fcu1
     import cpu_pkg::*;
 (   
     //system interface
     input logic clk, rst_n,
     
     //cache_subsystem interface
-    input logic [DATA_WIDTH-1:0]    instr_i,
-    input logic                     cache_valid,
-    input logic                     cache_ready,
+    //input logic [DATA_WIDTH-1:0]    instr_i,
+    //input logic                     cache_valid,
+    //input logic                     cache_ready,
 
     output logic                    if_req,
     output logic [ADDR_WIDTH-1:0]   if_pc,
 
     //Dynamic Branch Prediction interface
-    input logic                     pred_taken,
-    input logic [ADDR_WIDTH-1:0]    pred_target,
+    //input logic                     pred_taken,
+    //input logic [ADDR_WIDTH-1:0]    pred_target,
 
     //EX-Stage Feedback interface
     input logic                     ex_mispredict,
@@ -50,11 +53,18 @@ module fcu
     //input logic                     flush,
 
     //IF_ID Pipeline inteface
-    output logic [DATA_WIDTH-1:0]   instr_o,
-    output logic [ADDR_WIDTH-1:0]   if_id_pc,
-    output logic                    if_id_pred_taken,
-    output logic [ADDR_WIDTH-1:0]   if_id_pred_target,
-    output logic                    if_id_flush         //to if_id_pipeline.flush
+    //output logic [DATA_WIDTH-1:0]   instr_o,
+    output logic [ADDR_WIDTH-1:0]   if1_if2_pc,
+    //output logic                    if_id_pred_taken,
+    //output logic [ADDR_WIDTH-1:0]   if_id_pred_target,
+    output logic                    if1_if2_flush,        //to if_id_pipeline.flush
+
+    //IF2 redirect interface
+    input logic                     if2_redirect,
+    input logic [ADDR_WIDTH-1:0]    if2_redirect_pc,
+    input logic                     cache_advance,
+    
+    output logic                    ignore_valid
 );
     //PC Control
     logic [ADDR_WIDTH-1:0] pc_reg;
@@ -63,22 +73,33 @@ module fcu
     //NOTE: next_pc = pc tiep theo, hoac la pc duoc du doan, hoac la pc + 4
     /*Neu dat ex_correct_pc o day (redirect path) -> next_pc bi gate boi nhieu tin hieu trong do co STALL -> neu cung luc vua STALL
     vua REDIRECT -> STALL win, PC khong REDIRECT -> WRONG!*/
-    always_comb begin
+
+    //*version 2: chua co thong tin predict tai thoi diem nay
+    /*always_comb begin
         if (pred_taken)
             next_pc = pred_target;
         else
             next_pc = pc_reg + 4;
+    end*/
+
+    always_comb begin
+        next_pc = pc_reg + 4;
     end
     
     //1 cycle delay cho redirect
     //cycle sau redirect flush=0 nhung icache REFILL DONE tra ve rf_buffer KHONG CHECK TAG -> WRONG-PATH instruction
-    logic ignore_valid;
+    //*version 2: 2 cycle delay (IF1 IF2)
+    logic ignore_valid_r;
+    //logic ignore_valid;
 
     always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            ignore_valid    <= 1'b0;
-        else
-            ignore_valid    <= ex_mispredict;
+        if (!rst_n) begin
+            ignore_valid        <= 1'b0;
+            ignore_valid_r      <= 1'b0;
+        end else begin
+            ignore_valid_r      <= ex_mispredict | if2_redirect;    //ca ex va if2 deu giong nhau, deu la mispredict
+            ignore_valid        <= ignore_valid_r;
+        end
     end
 
     //PC Update
@@ -86,18 +107,29 @@ module fcu
         if (!rst_n) begin
             pc_reg  <= PC_RESET_VEC;
         end else begin
-            //PRIORITY 1: REDIRECT OC
-            if (ex_mispredict) 
+            //PRIORITY 1: EX REDIRECT PC
+            if (ex_mispredict) begin
                 pc_reg  <= ex_correct_pc;
-            //PRIORITY 2: NEXT PC
+            end
+            //PRIORITY 2: NEXT PC 
             /*stall: pipeline dang stall, neu co fetch cung khong con khong gian de execute 
               cache_valid: instr co y nghia
               cache_ready: CWF GUARD -> I-Cache tra ve cache_valid tu luc critical-word duoc tra ve (co the chua fully cache line va
               dang refill trong background) -> khong duoc advance PC
               ignore_valid: cycle truoc la redirect, data cua icache dang bi dirty -> wait 1 cycle
             */
-            else if (!stall && cache_valid && cache_ready && !ignore_valid)
+
+            //version2: chua co cache signal o day
+            //PRIORITY 2: IF2 Redirect
+            //PRIORITY 3: NEXT PC
+            
+            else if (if2_redirect) begin
+                pc_reg  <= if2_redirect_pc;
+            end
+
+            else if (!stall && /*cache_valid && cache_ready &&*/ cache_advance && !ignore_valid) begin
                 pc_reg  <= next_pc;
+            end
         end
     end
     
@@ -106,17 +138,18 @@ module fcu
     assign if_req = !stall && !ex_mispredict;   //!stall de save power | !ex_mispredict = PC sai -> req lenh sai -> waste cycle for wrong path refill
 
     //output to IF_ID Pipeline
-    assign instr_o              = (/*ex_mispredict ||*/ ignore_valid) ? NOP_INSTR : instr_i; //guard wrong-path instruction from cache
-    assign if_id_pc             = pc_reg;
+    //assign instr_o              = (/*ex_mispredict ||*/ ignore_valid) ? NOP_INSTR : instr_i; //guard wrong-path instruction from cache
+    assign if1_if2_pc             = pc_reg;
 
-    assign if_id_pred_taken     = /*ex_mispredict ? 1'b0  :*/ ignore_valid ? 1'b0   : pred_taken;
-    assign if_id_pred_target    = /*ex_mispredict ? '0    :*/ ignore_valid ? '0     : pred_target;
+    //assign if_id_pred_taken     = /*ex_mispredict ? 1'b0  :*/ ignore_valid ? 1'b0   : pred_taken;
+    //assign if_id_pred_target    = /*ex_mispredict ? '0    :*/ ignore_valid ? '0     : pred_target;
 
     //cwf_consumed: CWF instr da duoc IF/ID capture
     //set: valid=1, ready=0, !stall -> capture 1st cycle
     //clear: ready=1 (refill done) or mispredict (redirect, discard)
     //prevent duplicate: CWF instr chi latch vao IF/ID dung 1 lan
-    logic cwf_consumed;
+    //*version 2: cwf consumed in IF2
+    /*logic cwf_consumed;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)
@@ -125,7 +158,7 @@ module fcu
             cwf_consumed <= 1'b0;
         else if (cache_valid && !cache_ready && !stall)
             cwf_consumed <= 1'b1;
-    end
+    end*/
 
     //if_id_flush truth table
     //mispredict=1                -> flush (redirect)
@@ -133,5 +166,7 @@ module fcu
     //valid=1, cwf=0, !stall      -> no flush (hit / CWF 1st)
     //valid=1, cwf=1, !stall      -> flush (prevent duplicate CWF)
     //stall=1                     -> no flush (stall wins)
-    assign if_id_flush = ex_mispredict | ((!cache_valid || cwf_consumed) && !stall);
+
+    //version2: chua co cache signal, cwf o IF2
+    assign if1_if2_flush = ex_mispredict | if2_redirect;
 endmodule
