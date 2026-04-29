@@ -29,22 +29,29 @@ module lsu1
     //pipeline reg interface
     input logic                     mem_req,
     input logic                     mem_we,
-    input logic [1:0]               mem_size,
+    input logic [2:0]               mem_size,
 
     input logic [DATA_WIDTH-1:0]    addr,
     input logic [DATA_WIDTH-1:0]    wdata,
-    
+
     //dcache interface
     output logic [ADDR_WIDTH-1:0]   dc_addr,
     output logic                    dc_req,
     output logic                    dc_we,
     output logic [DATA_WIDTH-1:0]   dc_wdata,
-    output logic [STRB_WIDTH-1:0]   dc_wstrb
+    output logic [STRB_WIDTH-1:0]   dc_wstrb,
+
+    //passthrough to lsu2 (pipeline reg)
+    output logic [1:0]              addr_lsb,
+    output logic [2:0]              mem_size_o
 );
     //pass-through
-    assign dc_addr  = addr;
-    assign dc_req   = mem_req;
-    assign dc_we    = mem_we;
+    assign dc_addr      = addr;
+    assign dc_req       = mem_req;
+    assign dc_we        = mem_we;
+
+    assign addr_lsb     = addr[1:0];
+    assign mem_size_o   = mem_size;
     
     //mask strobe for write
     always_comb begin
