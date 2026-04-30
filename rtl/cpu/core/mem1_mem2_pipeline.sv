@@ -121,7 +121,7 @@ module mem1_mem2_pipeline
                 addr_lsb    <= addr_lsb_i;
                 reg_we      <= reg_we_i;
                 wb_sel      <= wb_sel_i;
-                rd_i;       //INTENTIONAL: rd latched from rd_i
+                rd          <= rd_i;
             end
         end
     end
