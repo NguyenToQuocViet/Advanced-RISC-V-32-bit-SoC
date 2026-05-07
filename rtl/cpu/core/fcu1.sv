@@ -47,8 +47,12 @@ module fcu1
     //Hazard Control Unit interface
     input logic                     stall,
 
+    //branch prediction interface
+    input logic                     pred_taken_i,
+
     //IF1/IF2 Pipeline interface
     output logic [ADDR_WIDTH-1:0]   if1_if2_pc,
+    output logic                    if1_if2_pred_taken,
     output logic                    if1_if2_flush,
 
     //IF2 redirect interface
@@ -86,6 +90,7 @@ module fcu1
     assign if_req       = !stall && !ex_mispredict;
 
     //output to IF1/IF2 pipeline
-    assign if1_if2_pc   = pc_reg;
-    assign if1_if2_flush = ex_mispredict | if2_redirect;
+    assign if1_if2_pc          = pc_reg;
+    assign if1_if2_pred_taken  = pred_taken_i;
+    assign if1_if2_flush       = ex_mispredict | if2_redirect;
 endmodule

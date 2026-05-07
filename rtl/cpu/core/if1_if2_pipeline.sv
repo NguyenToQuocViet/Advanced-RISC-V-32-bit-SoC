@@ -35,29 +35,36 @@ module if1_if2_pipeline
     //IF1 inputs
     input  logic [ADDR_WIDTH-1:0]   if1_pc_i,
     input  logic                    if1_valid_i,
+    input  logic                    if1_pred_taken_i,
 
     //IF2 outputs
     output logic [ADDR_WIDTH-1:0]   if2_pc_o,
-    output logic                    if2_valid_o
+    output logic                    if2_valid_o,
+    output logic                    if2_pred_taken_o
 );
     logic [ADDR_WIDTH-1:0]  pc;
     logic                   valid;
+    logic                   pred_taken;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pc    <= '0;
-            valid <= 1'b0;
+            pc        <= '0;
+            valid     <= 1'b0;
+            pred_taken <= 1'b0;
         end else begin
             if (flush) begin
-                pc    <= '0;
-                valid <= 1'b0;
+                pc        <= '0;
+                valid     <= 1'b0;
+                pred_taken <= 1'b0;
             end else if (!stall) begin
-                pc    <= if1_pc_i;
-                valid <= if1_valid_i;
+                pc        <= if1_pc_i;
+                valid     <= if1_valid_i;
+                pred_taken <= if1_pred_taken_i;
             end
         end
     end
 
-    assign if2_pc_o    = pc;
-    assign if2_valid_o = valid;
+    assign if2_pc_o         = pc;
+    assign if2_valid_o      = valid;
+    assign if2_pred_taken_o = pred_taken;
 endmodule
