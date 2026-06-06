@@ -1,0 +1,150 @@
+
+fibonacci.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	0000f137          	lui	x2,0xf
+   4:	10c000ef          	jal	110 <main>
+
+00000008 <_halt>:
+   8:	0000006f          	j	8 <_halt>
+
+0000000c <uart_putc>:
+   c:	10000737          	lui	x14,0x10000
+  10:	00072783          	lw	x15,0(x14) # 10000000 <main+0xffffef0>
+  14:	0017f793          	andi	x15,x15,1
+  18:	fe079ce3          	bnez	x15,10 <uart_putc+0x4>
+  1c:	100007b7          	lui	x15,0x10000
+  20:	00a7a023          	sw	x10,0(x15) # 10000000 <main+0xffffef0>
+  24:	00008067          	ret
+
+00000028 <uart_puts>:
+  28:	ff010113          	addi	x2,x2,-16 # eff0 <main+0xeee0>
+  2c:	00112623          	sw	x1,12(x2)
+  30:	00812423          	sw	x8,8(x2)
+  34:	00050413          	mv	x8,x10
+  38:	00054503          	lbu	x10,0(x10)
+  3c:	00050a63          	beqz	x10,50 <uart_puts+0x28>
+  40:	00140413          	addi	x8,x8,1
+  44:	fc9ff0ef          	jal	c <uart_putc>
+  48:	00044503          	lbu	x10,0(x8)
+  4c:	fe051ae3          	bnez	x10,40 <uart_puts+0x18>
+  50:	00c12083          	lw	x1,12(x2)
+  54:	00812403          	lw	x8,8(x2)
+  58:	01010113          	addi	x2,x2,16
+  5c:	00008067          	ret
+
+00000060 <uart_putu>:
+  60:	fe010113          	addi	x2,x2,-32
+  64:	00112e23          	sw	x1,28(x2)
+  68:	00000693          	li	x13,0
+  6c:	00900713          	li	x14,9
+  70:	00050663          	beqz	x10,7c <uart_putu+0x1c>
+  74:	00812c23          	sw	x8,24(x2)
+  78:	03c0006f          	j	b4 <uart_putu+0x54>
+  7c:	03000513          	li	x10,48
+  80:	f8dff0ef          	jal	c <uart_putc>
+  84:	0700006f          	j	f4 <uart_putu+0x94>
+  88:	00000793          	li	x15,0
+  8c:	ff650513          	addi	x10,x10,-10
+  90:	00178793          	addi	x15,x15,1
+  94:	fea76ce3          	bltu	x14,x10,8c <uart_putu+0x2c>
+  98:	00168693          	addi	x13,x13,1
+  9c:	00410613          	addi	x12,x2,4
+  a0:	00d60633          	add	x12,x12,x13
+  a4:	03050513          	addi	x10,x10,48
+  a8:	fea60fa3          	sb	x10,-1(x12)
+  ac:	04078a63          	beqz	x15,100 <uart_putu+0xa0>
+  b0:	00078513          	mv	x10,x15
+  b4:	fca76ae3          	bltu	x14,x10,88 <uart_putu+0x28>
+  b8:	00168413          	addi	x8,x13,1
+  bc:	01068793          	addi	x15,x13,16
+  c0:	002786b3          	add	x13,x15,x2
+  c4:	03050513          	addi	x10,x10,48
+  c8:	fea68a23          	sb	x10,-12(x13)
+  cc:	02805e63          	blez	x8,108 <uart_putu+0xa8>
+  d0:	00912a23          	sw	x9,20(x2)
+  d4:	00410493          	addi	x9,x2,4
+  d8:	00848433          	add	x8,x9,x8
+  dc:	fff44503          	lbu	x10,-1(x8)
+  e0:	f2dff0ef          	jal	c <uart_putc>
+  e4:	fff40413          	addi	x8,x8,-1
+  e8:	fe849ae3          	bne	x9,x8,dc <uart_putu+0x7c>
+  ec:	01812403          	lw	x8,24(x2)
+  f0:	01412483          	lw	x9,20(x2)
+  f4:	01c12083          	lw	x1,28(x2)
+  f8:	02010113          	addi	x2,x2,32
+  fc:	00008067          	ret
+ 100:	00068413          	mv	x8,x13
+ 104:	fc9ff06f          	j	cc <uart_putu+0x6c>
+ 108:	01812403          	lw	x8,24(x2)
+ 10c:	fe9ff06f          	j	f4 <uart_putu+0x94>
+
+00000110 <main>:
+ 110:	fe010113          	addi	x2,x2,-32
+ 114:	00112e23          	sw	x1,28(x2)
+ 118:	00812c23          	sw	x8,24(x2)
+ 11c:	00912a23          	sw	x9,20(x2)
+ 120:	01212823          	sw	x18,16(x2)
+ 124:	01312623          	sw	x19,12(x2)
+ 128:	01412423          	sw	x20,8(x2)
+ 12c:	01512223          	sw	x21,4(x2)
+ 130:	1a000513          	li	x10,416
+ 134:	ef5ff0ef          	jal	28 <uart_puts>
+ 138:	1b400513          	li	x10,436
+ 13c:	eedff0ef          	jal	28 <uart_puts>
+ 140:	1c000513          	li	x10,448
+ 144:	ee5ff0ef          	jal	28 <uart_puts>
+ 148:	00200493          	li	x9,2
+ 14c:	00100413          	li	x8,1
+ 150:	00000793          	li	x15,0
+ 154:	01000993          	li	x19,16
+ 158:	00040913          	mv	x18,x8
+ 15c:	00f40433          	add	x8,x8,x15
+ 160:	1cc00513          	li	x10,460
+ 164:	ec5ff0ef          	jal	28 <uart_puts>
+ 168:	00048513          	mv	x10,x9
+ 16c:	ef5ff0ef          	jal	60 <uart_putu>
+ 170:	1d000513          	li	x10,464
+ 174:	eb5ff0ef          	jal	28 <uart_puts>
+ 178:	00040513          	mv	x10,x8
+ 17c:	ee5ff0ef          	jal	60 <uart_putu>
+ 180:	00a00513          	li	x10,10
+ 184:	e89ff0ef          	jal	c <uart_putc>
+ 188:	00148493          	addi	x9,x9,1
+ 18c:	00090793          	mv	x15,x18
+ 190:	fd3494e3          	bne	x9,x19,158 <main+0x48>
+ 194:	1d800513          	li	x10,472
+ 198:	e91ff0ef          	jal	28 <uart_puts>
+ 19c:	0000006f          	j	19c <main+0x8c>
+ 1a0:	4952                	.insn	2, 0x4952
+ 1a2:	562d4353          	.insn	4, 0x562d4353
+ 1a6:	4620                	.insn	2, 0x4620
+ 1a8:	6269                	.insn	2, 0x6269
+ 1aa:	63616e6f          	jal	x28,167e0 <main+0x166d0>
+ 1ae:	0a3a6963          	bltu	x20,x3,260 <main+0x150>
+ 1b2:	0000                	.insn	2, 0x
+ 1b4:	2846                	.insn	2, 0x2846
+ 1b6:	2930                	.insn	2, 0x2930
+ 1b8:	3d20                	.insn	2, 0x3d20
+ 1ba:	3020                	.insn	2, 0x3020
+ 1bc:	000a                	.insn	2, 0x000a
+ 1be:	0000                	.insn	2, 0x
+ 1c0:	2846                	.insn	2, 0x2846
+ 1c2:	2931                	.insn	2, 0x2931
+ 1c4:	3d20                	.insn	2, 0x3d20
+ 1c6:	3120                	.insn	2, 0x3120
+ 1c8:	000a                	.insn	2, 0x000a
+ 1ca:	0000                	.insn	2, 0x
+ 1cc:	2846                	.insn	2, 0x2846
+ 1ce:	0000                	.insn	2, 0x
+ 1d0:	2029                	.insn	2, 0x2029
+ 1d2:	203d                	.insn	2, 0x203d
+ 1d4:	0000                	.insn	2, 0x
+ 1d6:	0000                	.insn	2, 0x
+ 1d8:	6f44                	.insn	2, 0x6f44
+ 1da:	656e                	.insn	2, 0x656e
+ 1dc:	0a2e                	.insn	2, 0x0a2e
+	...

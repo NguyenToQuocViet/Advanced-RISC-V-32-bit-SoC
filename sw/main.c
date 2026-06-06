@@ -32,10 +32,10 @@ void main(void) {
         sum += i;
     store_result(0, sum);
     
-    // --- Test 1: Fibonacci f(10) = 55 ---
+    // --- Test 1: Fibonacci f(15) = 55 ---
     // Exercises: multiple ADD, register moves, BLT loop
     a = 0; b = 1;
-    for (i = 2; i <= 10; i++) {
+    for (i = 2; i <= 15; i++) {
         tmp = a + b;
         a   = b;
         b   = tmp;

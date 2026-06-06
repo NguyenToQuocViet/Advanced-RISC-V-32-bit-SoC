@@ -220,7 +220,7 @@ module riscv_soc_tb;
         $display("[TB] Checking results at RESULT_BASE=0x%h:", RESULT_BASE);
         $display("--------------------------------------------");
         check_result(RESULT_BASE + 'h00, 32'd55,  "sum 1..10 = 55");
-        check_result(RESULT_BASE + 'h04, 32'd55,  "fibonacci f(10) = 55");
+        check_result(RESULT_BASE + 'h04, 32'd610,  "fibonacci f(15) = 610");
         check_result(RESULT_BASE + 'h08, 32'd256, "2^8 via doubling = 256");
         check_result(RESULT_BASE + 'h0C, 32'd9,   "max{3,1,4,1,5,9,2,6} = 9");
 
