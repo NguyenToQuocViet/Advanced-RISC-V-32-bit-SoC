@@ -20,8 +20,9 @@
 //                Refill/CWF behavior is preserved from icache v1.1.
 //
 // Author       : NGUYEN TO QUOC VIET
-// Date         : 2026-05-01
-// Version      : 2.2
+// Date         : 2026-05-07
+// Version      : 2.3
+// Changes v2.3 : REFILL_DONE deasserts ready while 1RW SRAM commits refill line.
 // Changes v2.2 : SRAM-based tag/data storage using sram_1rw wrappers.
 //                Adds LOOKUP state for sync-read return timing.
 //                Hit/refill/CWF decisions use delayed PC metadata.
@@ -340,7 +341,7 @@ module icache_7stg
                 if (cache_hit) begin
                     instr        = hit_data;
                     icache_valid = 1'b1;
-                    // LOOKUP accepts the next request only on clean hit in v2.2.
+                    //LOOKUP accepts next request only on clean hit.
                     icache_ready = 1'b1;
                 end else if (rf_buffer_hit && !rf_abandon) begin
                     instr        = rf_buffer[lookup_word_sel_q];
@@ -365,7 +366,7 @@ module icache_7stg
                     instr        = rf_buffer[lookup_word_sel_q];
                     icache_valid = 1'b1;
                 end
-                icache_ready = 1'b1;
+                icache_ready = 1'b0;
             end
         endcase
     end
