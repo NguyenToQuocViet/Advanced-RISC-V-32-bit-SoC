@@ -72,6 +72,12 @@ module dcache
     assign addr_idx      = addr[LINE_OFF_BITS +: DC_IDX_BITS];      //10:4
     assign addr_tag      = addr[ADDR_WIDTH-1  -: DC_TAG_BITS];      //31:11
 
+    //uncacheable MMIO region: addr[31:28]==UNCACHED_SEL (UART etc.)
+    //device regs must read fresh each access -> never hit, never allocate, no fwd
+    localparam logic [3:0] UNCACHED_SEL = 4'h1;
+    logic addr_uncacheable;
+    assign addr_uncacheable = (addr[ADDR_WIDTH-1 -: 4] == UNCACHED_SEL);
+
     //storage (2-way) — 1D flat arrays, index = {set_idx, way_bit}
     //DC_SETS*DC_WAYS = 128*2 = 256 entries, index = {addr_idx, way}
     localparam CACHE_DEPTH = DC_SETS * DC_WAYS;
@@ -92,7 +98,7 @@ module dcache
             way_hit[w] = cache_valid[addr_idx][w] && (cache_tag[addr_idx * DC_WAYS + w] == addr_tag);
         end
 
-        cache_hit   = |way_hit;
+        cache_hit   = |way_hit && !addr_uncacheable;  //uncacheable never hits
         hit_way     = way_hit[1];   //optimize
         cache_rdata = cache_data[{addr_idx, hit_way}][addr_word_sel*DATA_WIDTH +: DATA_WIDTH];
     end
@@ -101,9 +107,13 @@ module dcache
     assign fwd_addr = {addr[ADDR_WIDTH-1:WORD_OFF_BITS], {WORD_OFF_BITS{1'b0}}};
     logic [DATA_WIDTH-1:0] merged_rdata;
 
+    //uncacheable: no WB forwarding (MMIO write reg != read reg at same addr)
+    logic fwd_hit_eff;
+    assign fwd_hit_eff = fwd_hit && !addr_uncacheable;
+
     always_comb begin
         for (int b = 0; b < STRB_WIDTH; b++) begin
-            if (fwd_hit && fwd_strb[b])
+            if (fwd_hit_eff && fwd_strb[b])
                 merged_rdata[b*8 +: 8] = fwd_data[b*8 +: 8];
             else
                 merged_rdata[b*8 +: 8] = cache_rdata[b*8 +: 8];
@@ -111,7 +121,7 @@ module dcache
     end
 
     logic fwd_full_cover;
-    assign fwd_full_cover = fwd_hit && (&fwd_strb);
+    assign fwd_full_cover = fwd_hit_eff && (&fwd_strb);
 
     //refill buffer
     logic [DATA_WIDTH-1:0]      rf_buffer [WORDS_PER_LINE];
@@ -123,12 +133,15 @@ module dcache
     logic rf_buffer_hit;
     assign rf_buffer_hit = rf_valid[addr_word_sel] && (rf_idx == addr_idx) && (rf_tag == addr_tag);
 
+    //track if in-flight refill targets uncacheable region (suppress cache commit)
+    logic rf_uncacheable;
+
     //merge refill buffer with WB forwarding
     logic [DATA_WIDTH-1:0] rf_merged_rdata;
 
     always_comb begin
         for (int b = 0; b < STRB_WIDTH; b++) begin
-            if (fwd_hit && fwd_strb[b])
+            if (fwd_hit_eff && fwd_strb[b])
                 rf_merged_rdata[b*8 +: 8] = fwd_data[b*8 +: 8];
             else
                 rf_merged_rdata[b*8 +: 8] = rf_buffer[addr_word_sel][b*8 +: 8];
@@ -216,8 +229,11 @@ module dcache
                 end
 
                 REFILL_DONE: begin
-                    cache_valid[rf_idx][evict_way] <= 1'b1;
-                    lru[rf_idx] <= ~evict_way;
+                    //uncacheable: do not mark line valid (no allocation)
+                    if (!rf_uncacheable) begin
+                        cache_valid[rf_idx][evict_way] <= 1'b1;
+                        lru[rf_idx] <= ~evict_way;
+                    end
                     rf_valid    <= '0;
                 end
             endcase
@@ -230,9 +246,10 @@ module dcache
             IDLE: begin
                 if (mem_req) begin
                     if (!mem_we && !cache_hit && !fwd_full_cover) begin
-                        rf_tag      <= addr_tag;
-                        rf_idx      <= addr_idx;
-                        rf_word_sel <= addr_word_sel;
+                        rf_tag         <= addr_tag;
+                        rf_idx         <= addr_idx;
+                        rf_word_sel    <= addr_word_sel;
+                        rf_uncacheable <= addr_uncacheable;  //latch region type for this refill
                     end
                     if (mem_we && cache_hit && !wb_full) begin
                         for (int b = 0; b < STRB_WIDTH; b++) begin
@@ -251,9 +268,12 @@ module dcache
             end
 
             REFILL_DONE: begin
-                cache_tag[{rf_idx, evict_way}]  <= rf_tag;
-                for (int w = 0; w < WORDS_PER_LINE; w++)
-                    cache_data[{rf_idx, evict_way}][w*DATA_WIDTH +: DATA_WIDTH] <= rf_buffer[w];
+                //uncacheable: serve data to CPU but do NOT allocate into cache
+                if (!rf_uncacheable) begin
+                    cache_tag[{rf_idx, evict_way}]  <= rf_tag;
+                    for (int w = 0; w < WORDS_PER_LINE; w++)
+                        cache_data[{rf_idx, evict_way}][w*DATA_WIDTH +: DATA_WIDTH] <= rf_buffer[w];
+                end
             end
         endcase
     end
