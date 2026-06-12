@@ -1,8 +1,26 @@
 module fpga_top (
     input  logic clk,
-    input  logic rst_n,
+    input logic rst_n_pad,
     output logic uart_tx_o
 );
+    wire rst_n = ~rst_n_pad;
+
+    // ILA probes
+    (* MARK_DEBUG = "true" *) logic        dbg_m_arvalid;
+    (* MARK_DEBUG = "true" *) logic        dbg_m_arready;
+    (* MARK_DEBUG = "true" *) logic [31:0] dbg_m_araddr;
+    (* MARK_DEBUG = "true" *) logic        dbg_s1_awvalid;
+    (* MARK_DEBUG = "true" *) logic        dbg_s1_awready;
+    (* MARK_DEBUG = "true" *) logic        dbg_uart_tx;
+
+    assign dbg_m_arvalid  = m_arvalid;
+    assign dbg_m_arready  = m_arready;
+    assign dbg_m_araddr   = m_araddr;
+    assign dbg_s1_awvalid = s1_awvalid;
+    assign dbg_s1_awready = s1_awready;
+    assign dbg_uart_tx    = uart_tx_o;
+
+
 
     //--- AXI wires: riscv_soc master → decoder ---
     logic                  m_arvalid, m_arready;
