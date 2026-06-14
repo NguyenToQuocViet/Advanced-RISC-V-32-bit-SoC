@@ -1,0 +1,34 @@
+#-----------------------------------------------------------
+# Vivado v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 12:34:56 MST 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Thu Jun  4 15:53:12 2026
+# Process ID         : 597545
+# Current directory  : /home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/work
+# Command line       : vivado /home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/work/fpga_demo/fpga_demo.xpr
+# Log file           : /home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/work/vivado.log
+# Journal file       : /home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/work/vivado.jou
+# Running On         : quocviet-workstation
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 24.04.4 LTS
+# Processor Detail   : 12th Gen Intel(R) Core(TM) i5-12400F
+# CPU Frequency      : 3144.315 MHz
+# CPU Physical cores : 6
+# CPU Logical cores  : 12
+# Host memory        : 33453 MB
+# Swap memory        : 25769 MB
+# Total Virtual      : 59223 MB
+# Available Virtual  : 53616 MB
+#-----------------------------------------------------------
+start_gui
+open_project /home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/work/fpga_demo/fpga_demo.xpr
+update_compile_order -fileset sources_1
+create_bd_design "design_1"
+update_compile_order -fileset sources_1
+startgroup
+create_bd_cell -type ip -vlnv xilinx.com:ip:zynq_ultra_ps_e:3.5 zynq_ultra_ps_e_0
+endgroup
+set_property location {1 233 -144} [get_bd_cells zynq_ultra_ps_e_0]
+close_bd_design [get_bd_designs design_1]
+close_project

@@ -1,0 +1,88 @@
+Vivado Simulator v2025.2
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+Running: /home/quocviet/Data/Vivado/2025.2/Vivado/bin/unwrapped/lnx64.o/xelab --incr --debug typical --relax --mt 8 -L xil_defaultlib -L uvm -L unisims_ver -L unimacro_ver -L secureip -L xpm --snapshot fpga_top_tb_behav xil_defaultlib.fpga_top_tb xil_defaultlib.glbl -log elaborate.log 
+Using 8 slave threads.
+WARNING: [XSIM 43-3431] One or more environment variables have been detected which affect the operation of the C compiler. These are typically not set in standard installations and are not tested by AMD, however they may be appropriate for your system, so the flow will attempt to continue.  If errors occur, try running xelab with the "-mt off -v 1" switches to see more information from the C compiler. The following environment variables have been detected:
+Starting static elaboration
+Pass Through NonSizing Optimizer
+Completed static elaboration
+Starting simulation data flow analysis
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/cache/cache_pkg.sv" Line 24. Module cache_pkg doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/cpu_pkg.sv" Line 24. Module cpu_pkg doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/cache/axi_pkg.sv" Line 24. Module axi_pkg doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/fpga/fpga_top.sv" Line 1. Module fpga_top doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/riscv_soc.sv" Line 25. Module riscv_soc doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/riscv_core.sv" Line 32. Module riscv_core doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/hazard_ctrl.sv" Line 25. Module hazard_ctrl doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/mispredict_reg.sv" Line 25. Module mispredict_reg doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/hdu.sv" Line 26. Module hdu doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/fcu.sv" Line 29. Module fcu doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/dbp.sv" Line 24. Module dbp doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/if_id_pipeline.sv" Line 24. Module if_id_pipeline doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/cu.sv" Line 24. Module cu doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/rf.sv" Line 24. Module rf doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/immgen.sv" Line 24. Module immgen doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/id_ex_pipeline.sv" Line 24. Module id_ex_pipeline doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/fu.sv" Line 24. Module fu doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/fwd_mux.sv" Line 26. Module fwd_mux doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/alu_operand_mux.sv" Line 25. Module alu_operand_mux doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/alu.sv" Line 24. Module alu doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/bru.sv" Line 25. Module bru doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/ex_mem_pipeline.sv" Line 24. Module ex_mem_pipeline doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/lsu.sv" Line 26. Module lsu doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/mem_wb_pipeline.sv" Line 24. Module mem_wb_pipeline doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/wb.sv" Line 25. Module wb doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/cache/cache_subsystem.sv" Line 22. Module cache_subsystem doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/cache/icache.sv" Line 27. Module icache_default doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/cache/dcache.sv" Line 24. Module dcache_default doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/cache/write_buffer.sv" Line 24. Module write_buffer doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/cache/bus_arbiter.sv" Line 24. Module bus_arbiter doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/fpga/axi_decoder.sv" Line 1. Module axi_decoder doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/fpga/axi_bram.sv" Line 1. Module axi_bram(INIT_FILE0="/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/sw/hello0.mem",INIT_FILE1="/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/sw/hello1.mem",INIT_FILE2="/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/sw/hello2.mem",INIT_FILE3="/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/sw/hello3.mem") doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/fpga/uart_axi.sv" Line 1. Module uart_axi(CLK_FREQ=75000000) doesn't have a timescale but at least one module in design has a timescale.
+WARNING: [XSIM 43-4099] "/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/fpga/uart_tx.sv" Line 1. Module uart_tx(CLK_FREQ=75000000) doesn't have a timescale but at least one module in design has a timescale.
+Completed simulation data flow analysis
+Time Resolution for simulation is 1ps
+Compiling package xil_defaultlib.cache_pkg
+Compiling package xil_defaultlib.cpu_pkg
+Compiling package xil_defaultlib.axi_pkg
+Compiling module xil_defaultlib.hazard_ctrl
+Compiling module xil_defaultlib.mispredict_reg
+Compiling module xil_defaultlib.hdu
+Compiling module xil_defaultlib.fcu
+Compiling module xil_defaultlib.dbp
+Compiling module xil_defaultlib.if_id_pipeline
+Compiling module xil_defaultlib.cu
+Compiling module xil_defaultlib.rf
+Compiling module xil_defaultlib.immgen
+Compiling module xil_defaultlib.id_ex_pipeline
+Compiling module xil_defaultlib.fu
+Compiling module xil_defaultlib.fwd_mux
+Compiling module xil_defaultlib.alu_operand_mux
+Compiling module xil_defaultlib.alu
+Compiling module xil_defaultlib.bru
+Compiling module xil_defaultlib.ex_mem_pipeline
+Compiling module xil_defaultlib.lsu
+Compiling module xil_defaultlib.mem_wb_pipeline
+Compiling module xil_defaultlib.wb
+Compiling module xil_defaultlib.riscv_core
+Compiling module xil_defaultlib.icache_default
+Compiling module xil_defaultlib.dcache_default
+Compiling module xil_defaultlib.write_buffer
+Compiling module xil_defaultlib.bus_arbiter
+Compiling module xil_defaultlib.cache_subsystem
+Compiling module xil_defaultlib.riscv_soc
+Compiling module xil_defaultlib.axi_decoder
+Compiling module xil_defaultlib.axi_bram(INIT_FILE0="/home/quocv...
+Compiling module xil_defaultlib.uart_tx(CLK_FREQ=75000000)
+Compiling module xil_defaultlib.uart_axi(CLK_FREQ=75000000)
+Compiling module unisims_ver.IBUF
+Compiling module unisims_ver.MMCME2_ADV(CLKFBOUT_MULT_F=40.12...
+Compiling module unisims_ver.BUFG
+Compiling module xil_defaultlib.clk_wiz_0_clk_wiz
+Compiling module xil_defaultlib.clk_wiz_0
+Compiling module xil_defaultlib.fpga_top
+Compiling module xil_defaultlib.fpga_top_tb
+Compiling module xil_defaultlib.glbl
+Built simulation snapshot fpga_top_tb_behav

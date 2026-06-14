@@ -1,0 +1,146 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
+| Date         : Sat Jun 13 17:03:09 2026
+| Host         : quocviet-workstation running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_control_sets -verbose -file fpga_top_control_sets_placed.rpt
+| Design       : fpga_top
+| Device       : xc7a100t
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Control Set Information
+
+Table of Contents
+-----------------
+1. Summary
+2. Histogram
+3. Flip-Flop Distribution
+4. Detailed Control Set Information
+
+1. Summary
+----------
+
++----------------------------------------------------------+-------+
+|                          Status                          | Count |
++----------------------------------------------------------+-------+
+| Total control sets                                       |    68 |
+|    Minimum number of control sets                        |    68 |
+|    Addition due to synthesis replication                 |     0 |
+|    Addition due to physical synthesis replication        |     0 |
+| Unused register locations in slices containing registers |    61 |
++----------------------------------------------------------+-------+
+* Control sets can be merged at opt_design using control_set_merge or merge_equivalent_drivers
+** Run report_qor_suggestions for automated merging and remapping suggestions
+
+
+2. Histogram
+------------
+
++--------------------+-------+
+|       Fanout       | Count |
++--------------------+-------+
+| Total control sets |    68 |
+| >= 0 to < 4        |     0 |
+| >= 4 to < 6        |     5 |
+| >= 6 to < 8        |     1 |
+| >= 8 to < 10       |    10 |
+| >= 10 to < 12      |     1 |
+| >= 12 to < 14      |     1 |
+| >= 14 to < 16      |     2 |
+| >= 16              |    48 |
++--------------------+-------+
+* Control sets can be remapped at either synth_design or opt_design
+
+
+3. Flip-Flop Distribution
+-------------------------
+
++--------------+-----------------------+------------------------+-----------------+--------------+
+| Clock Enable | Synchronous Set/Reset | Asynchronous Set/Reset | Total Registers | Total Slices |
++--------------+-----------------------+------------------------+-----------------+--------------+
+| No           | No                    | No                     |               4 |            3 |
+| No           | No                    | Yes                    |            1746 |          588 |
+| No           | Yes                   | No                     |               0 |            0 |
+| Yes          | No                    | No                     |             205 |          129 |
+| Yes          | No                    | Yes                    |             880 |          387 |
+| Yes          | Yes                   | No                     |             160 |          124 |
++--------------+-----------------------+------------------------+-----------------+--------------+
+
+
+4. Detailed Control Set Information
+-----------------------------------
+
++--------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+------------------+----------------+--------------+
+|       Clock Signal       |                              Enable Signal                             |                          Set/Reset Signal                          | Slice Load Count | Bel Load Count | Bels / Slice |
++--------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+------------------+----------------+--------------+
+|  u_clk_wiz/inst/clk_out1 |                                                                        | u_decoder/ar_sel_r_i_2_n_0                                         |                3 |              4 |         1.33 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_bus_arbiter/wr_state_next[0]                 | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |                2 |              4 |         2.00 |
+|  u_clk_wiz/inst/clk_out1 |                                                                        | rst_pipe[3]_i_1_n_0                                                |                1 |              4 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 |                                                                        |                                                                    |                3 |              4 |         1.33 |
+|  u_clk_wiz/inst/clk_out1 |                                                                        | u_uart/u_uart_tx/rst_pipe_reg[3]                                   |                3 |              5 |         1.67 |
+|  u_clk_wiz/inst/clk_out1 |                                                                        | u_bram/FSM_onehot_rd_state[2]_i_2_n_0                              |                2 |              6 |         3.00 |
+|  u_clk_wiz/inst/clk_out1 | u_bram/rd_beat_cnt[7]_i_1_n_0                                          | u_bram/FSM_onehot_rd_state[2]_i_2_n_0                              |                3 |              8 |         2.67 |
+|  u_clk_wiz/inst/clk_out1 | u_uart/u_uart_tx/E[0]                                                  | u_uart/u_uart_tx/rst_pipe_reg[3]                                   |                3 |              8 |         2.67 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_3                         |                                                                    |                2 |              8 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_2                         |                                                                    |                2 |              8 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_1                         |                                                                    |                2 |              8 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[11]_2                                |                                                                    |                2 |              8 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[11]_1                                |                                                                    |                2 |              8 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[11]_0                                |                                                                    |                2 |              8 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[10]_rep__14_2                        |                                                                    |                2 |              8 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[10]_rep__14_1                        |                                                                    |                2 |              8 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_uart/u_uart_tx/baud_cnt[9]_i_1_n_0                                   | u_uart/u_uart_tx/rst_pipe_reg[3]                                   |                4 |             10 |         2.50 |
+|  u_clk_wiz/inst/clk_out1 | u_uart/u_uart_tx/bit_cnt[0]                                            | u_uart/u_uart_tx/rst_pipe_reg[3]                                   |                3 |             13 |         4.33 |
+|  u_clk_wiz/inst/clk_out1 | u_bram/wr_addr[0]                                                      | u_bram/FSM_onehot_rd_state[2]_i_2_n_0                              |                4 |             14 |         3.50 |
+|  u_clk_wiz/inst/clk_out1 | u_bram/rd_addr_base[0]                                                 | u_bram/FSM_onehot_rd_state[2]_i_2_n_0                              |                7 |             15 |         2.14 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/E[0]                                  | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |               10 |             19 |         1.90 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/rf_buffer[3][31]_i_2_n_0              | u_soc/u_cache_subsystem/u_dcache/rf_buffer[3][31]_i_1__0_n_0       |               25 |             32 |         1.28 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/rf_buffer[2][31]_i_2_n_0              | u_soc/u_cache_subsystem/u_dcache/rf_buffer[2][31]_i_1__0_n_0       |               26 |             32 |         1.23 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/rf_buffer[0]                          |                                                                    |               26 |             32 |         1.23 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/rf_buffer[3][31]_i_1_n_0              |                                                                    |               23 |             32 |         1.39 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/rf_buffer[1][31]_i_1_n_0              |                                                                    |               22 |             32 |         1.45 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/rf_buffer[1][31]_i_2_n_0              | u_soc/u_cache_subsystem/u_dcache/rf_buffer[1][31]_i_1__0_n_0       |               25 |             32 |         1.28 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/rf_buffer__2[0]                       | u_soc/u_cache_subsystem/u_dcache/rf_buffer[0][31]_i_1__0_n_0       |               23 |             32 |         1.39 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/FSM_sequential_state_reg[0]_0         | u_soc/u_cache_subsystem/u_bus_arbiter/FSM_onehot_rd_state_reg[0]_3 |               25 |             32 |         1.28 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/rf_tag[0]                             |                                                                    |                9 |             46 |         5.11 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_bus_arbiter/wr_addr_lat0                     | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |                9 |             54 |         6.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/cache_tag_reg_r1_0_63_0_2_i_1_n_0     |                                                                    |               14 |             56 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/cache_tag_reg_r1_128_191_0_2_i_1_n_0  |                                                                    |               14 |             56 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/cache_tag_reg_r1_192_255_0_2_i_1_n_0  |                                                                    |               14 |             56 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/cache_tag_reg_r1_64_127_0_2_i_1_n_0   |                                                                    |               14 |             56 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/rf_tag[0]                             |                                                                    |               49 |             63 |         1.29 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_4                         |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[11]_3                                |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[10]_rep__14_6                        |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[11]_4                                |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[11]_5                                |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[11]_6                                |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[8]_0                                 |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_5                         |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_6                         |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_7                         |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_8                         |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[9]_rep__14_9                         |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[10]_rep__14_5                        |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[10]_rep__14_4                        |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[10]_rep__14_3                        |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_id_ex/pc_reg[10]_rep__14_7                        |                                                                    |               18 |             72 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_mem_wb/p_0_in1_out                                |                                                                    |               11 |             88 |         8.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_ex_mem/E[0]                                       | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |               41 |             97 |         2.37 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/I11                                   | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |               51 |            104 |         2.04 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/mispredict_r_reg                      | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |               61 |            120 |         1.97 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_mispredict_reg/mispredict_r_reg_3                 | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |               66 |            141 |         2.14 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/cache_tag_reg_64_127_0_2_i_1_n_0      |                                                                    |               50 |            200 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/cache_tag_reg_0_63_0_2_i_1_n_0        |                                                                    |               50 |            200 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/cache_tag_reg_128_191_0_2_i_1_n_0     |                                                                    |               50 |            200 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_icache/cache_tag_reg_192_255_0_2_i_1_n_0     |                                                                    |               50 |            200 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_riscv_core/u_mispredict_reg/mispredict_r_reg_2                 | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |              123 |            273 |         2.22 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/cache_data_reg_r1_128_191_0_2_i_1_n_0 |                                                                    |               86 |            344 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/cache_data_reg_r1_192_255_0_2_i_1_n_0 |                                                                    |               86 |            344 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/cache_data_reg_r1_64_127_0_2_i_1_n_0  |                                                                    |               86 |            344 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/cache_data_reg_r1_0_63_0_2_i_4_n_0    |                                                                    |               86 |            344 |         4.00 |
+|  u_clk_wiz/inst/clk_out1 | u_soc/u_cache_subsystem/u_dcache/p_6_in                                |                                                                    |               53 |            424 |         8.00 |
+|  u_clk_wiz/inst/clk_out1 |                                                                        | u_soc/u_riscv_core/u_dbp/rst_pipe_reg[3]                           |              579 |           1727 |         2.98 |
++--------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+------------------+----------------+--------------+
+
+

@@ -1,0 +1,7 @@
+set_property SRC_FILE_INFO {cfile:/home/quocviet/fpga_a7/fpga_a7.srcs/constrs_1/new/fpga_a7.xdc rfile:../../../fpga_a7.srcs/constrs_1/new/fpga_a7.xdc id:1} [current_design]
+set_property src_info {type:XDC file:1 line:2 export:INPUT save:INPUT read:READ} [current_design]
+set_property PACKAGE_PIN E3 [get_ports clk]
+set_property src_info {type:XDC file:1 line:7 export:INPUT save:INPUT read:READ} [current_design]
+set_property PACKAGE_PIN C2 [get_ports rst_n_pad]
+set_property src_info {type:XDC file:1 line:11 export:INPUT save:INPUT read:READ} [current_design]
+set_property PACKAGE_PIN D10 [get_ports uart_tx_o]
