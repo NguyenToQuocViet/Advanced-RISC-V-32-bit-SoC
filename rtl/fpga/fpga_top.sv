@@ -3,7 +3,16 @@ module fpga_top (
     input logic rst_n_pad,
     output logic uart_tx_o
 );
-    wire rst_n = ~rst_n_pad;
+
+    logic clk_sys, clk_locked;
+    logic [3:0] rst_pipe;
+    wire arst_n = rst_n_pad && clk_locked;
+    
+    always_ff @(posedge clk_sys or negedge arst_n)
+        if (!arst_n) rst_pipe <= 4'b0000;
+        else         rst_pipe <= {rst_pipe[2:0], 1'b1};
+    
+    wire rst_n = rst_pipe[3];
 
     // ILA probes
     (* MARK_DEBUG = "true" *) logic        dbg_m_arvalid;
@@ -92,7 +101,7 @@ module fpga_top (
     logic fence_done;
 
     riscv_soc u_soc (
-        .clk            (clk),
+        .clk            (clk_sys),
         .rst_n          (rst_n),
         .fence          (1'b0),
         .fence_done     (fence_done),
@@ -125,7 +134,7 @@ module fpga_top (
 
     //--- AXI Decoder ---
     axi_decoder u_decoder (
-        .clk        (clk),
+        .clk        (clk_sys),
         .rst_n      (rst_n),
         //master
         .m_arvalid  (m_arvalid),
@@ -215,7 +224,7 @@ module fpga_top (
         .INIT_FILE2 ("/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/sw/hello2.mem"),
         .INIT_FILE3 ("/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/sw/hello3.mem")
     ) u_bram (
-        .clk            (clk),
+        .clk            (clk_sys),
         .rst_n          (rst_n),
         .s_axi_arvalid  (s0_arvalid),
         .s_axi_arready  (s0_arready),
@@ -245,8 +254,8 @@ module fpga_top (
     );
 
     //--- UART AXI ---
-    uart_axi #(.CLK_FREQ(96_000_000)) u_uart (
-        .clk            (clk),
+    uart_axi #(.CLK_FREQ(75_000_000)) u_uart (
+        .clk            (clk_sys),
         .rst_n          (rst_n),
         .s_axi_awvalid  (s1_awvalid),
         .s_axi_awready  (s1_awready),
@@ -274,6 +283,13 @@ module fpga_top (
         .s_axi_rresp    (s1_rresp),
         .s_axi_rlast    (s1_rlast),
         .uart_tx_o      (uart_tx_o)
+    );
+
+    clk_wiz_0 u_clk_wiz (
+        .clk_in1  (clk),
+        .reset    (~rst_n_pad),
+        .clk_out1 (clk_sys),
+        .locked   (clk_locked)
     );
 
 endmodule

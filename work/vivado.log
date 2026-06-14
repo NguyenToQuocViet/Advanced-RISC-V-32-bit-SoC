@@ -3,8 +3,8 @@
 # SW Build 6299465 on Fri Nov 14 12:34:56 MST 2025
 # IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
 # SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
-# Start of session at: Sun Jun 14 11:38:49 2026
-# Process ID         : 117991
+# Start of session at: Sun Jun 14 14:53:39 2026
+# Process ID         : 563984
 # Current directory  : /home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/work
 # Command line       : vivado -mode batch -source ../tcl/elaborate.tcl
 # Log file           : /home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/work/vivado.log
@@ -13,13 +13,13 @@
 # Platform           : Ubuntu
 # Operating System   : Ubuntu 24.04.4 LTS
 # Processor Detail   : 12th Gen Intel(R) Core(TM) i5-12400F
-# CPU Frequency      : 1268.000 MHz
+# CPU Frequency      : 1824.995 MHz
 # CPU Physical cores : 6
 # CPU Logical cores  : 12
 # Host memory        : 33452 MB
 # Swap memory        : 25769 MB
 # Total Virtual      : 59222 MB
-# Available Virtual  : 54924 MB
+# Available Virtual  : 56256 MB
 #-----------------------------------------------------------
 source ../tcl/elaborate.tcl
 # create_project -in_memory -part xc7a35ticsg324-1L 
@@ -54,9 +54,9 @@ Using part: xc7a35ticsg324-1L
 INFO: [Device 21-403] Loading part xc7a35ticsg324-1L
 INFO: [Synth 8-7079] Multithreading enabled for synth_design using a maximum of 7 processes.
 INFO: [Synth 8-7078] Launching helper process for spawning children vivado processes
-INFO: [Synth 8-7075] Helper process launched with PID 118771
+INFO: [Synth 8-7075] Helper process launched with PID 564022
 ---------------------------------------------------------------------------------
-Starting RTL Elaboration : Time (s): cpu = 00:00:03 ; elapsed = 00:00:03 . Memory (MB): peak = 2215.195 ; gain = 482.594 ; free physical = 21931 ; free virtual = 50996
+Starting RTL Elaboration : Time (s): cpu = 00:00:02 ; elapsed = 00:00:03 . Memory (MB): peak = 2198.727 ; gain = 481.875 ; free physical = 22743 ; free virtual = 52292
 ---------------------------------------------------------------------------------
 CRITICAL WARNING: [Synth 8-9873] overwriting previous definition of module 'fu' [/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/fu_7stg.sv:72]
 INFO: [Synth 8-13127] previous definition of module 'fu' is here [/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/fu.sv:63]
@@ -70,13 +70,13 @@ INFO: [Synth 8-10285] module 'lsu1' is ignored due to previous errors [/home/quo
 INFO: [Synth 8-9084] Verilog file '/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/lsu1.sv' ignored due to errors
 ERROR: [Synth 8-12188] Failed to read verilog '/home/quocviet/Project/Advanced-RISC-V-32-bit-SoC/rtl/cpu/core/lsu1.sv'
 ---------------------------------------------------------------------------------
-Finished RTL Elaboration : Time (s): cpu = 00:00:03 ; elapsed = 00:00:04 . Memory (MB): peak = 2298.133 ; gain = 565.531 ; free physical = 21841 ; free virtual = 50907
+Finished RTL Elaboration : Time (s): cpu = 00:00:03 ; elapsed = 00:00:03 . Memory (MB): peak = 2281.664 ; gain = 564.812 ; free physical = 22648 ; free virtual = 52198
 ---------------------------------------------------------------------------------
 RTL Elaboration failed
 9 Infos, 0 Warnings, 3 Critical Warnings and 4 Errors encountered.
 synth_design failed
-synth_design: Time (s): cpu = 00:00:06 ; elapsed = 00:00:06 . Memory (MB): peak = 2298.141 ; gain = 700.750 ; free physical = 21840 ; free virtual = 50907
-INFO: [Common 17-2834] synth_design peak Physical Memory [PSS] (MB): overall = 1878.147; main = 1529.895; forked = 348.253
-INFO: [Common 17-2834] synth_design peak Virtual Memory [VSS] (MB): overall = 3292.328; main = 2298.137; forked = 994.191
+synth_design: Time (s): cpu = 00:00:05 ; elapsed = 00:00:05 . Memory (MB): peak = 2281.672 ; gain = 659.156 ; free physical = 22650 ; free virtual = 52200
+INFO: [Common 17-2834] synth_design peak Physical Memory [PSS] (MB): overall = 1892.249; main = 1546.326; forked = 345.923
+INFO: [Common 17-2834] synth_design peak Virtual Memory [VSS] (MB): overall = 3275.859; main = 2281.668; forked = 994.191
 ERROR: [Vivado_Tcl 4-5] Elaboration failed - please see the console for details
-INFO: [Common 17-206] Exiting Vivado at Sun Jun 14 11:39:01 2026...
+INFO: [Common 17-206] Exiting Vivado at Sun Jun 14 14:53:46 2026...

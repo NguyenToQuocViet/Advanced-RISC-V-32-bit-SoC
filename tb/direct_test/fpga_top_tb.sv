@@ -12,11 +12,11 @@ module fpga_top_tb;
     logic uart_tx_o;
 
     //pl_clk0 = 96MHz -> 10.417ns period
-    localparam real CLK_PERIOD = 10.417;
+    localparam real CLK_PERIOD = 10.00;
 
     fpga_top u_dut (
         .clk       (clk),
-        .rst_n     (rst_n),
+        .rst_n_pad (rst_n),
         .uart_tx_o (uart_tx_o)
     );
 
@@ -93,6 +93,9 @@ module fpga_top_tb;
     initial begin
         rx_byte = 8'h00;
         forever begin
+            wait (u_dut.rst_n === 1'b1);
+            wait (uart_tx_o === 1'b1);
+        
             //idle HIGH; wait for start bit (falling edge to 0)
             @(negedge uart_tx_o);
             //align to middle of start bit

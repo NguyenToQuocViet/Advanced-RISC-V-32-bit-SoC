@@ -1,8 +1,11 @@
 #define UART_BASE ((volatile unsigned int *)0x10000000U)
 
 static void uart_putc(char c) {
-    while (*UART_BASE & 1)
-        ;
+    if (c == '\n') {
+        while (*UART_BASE & 1U);
+        *UART_BASE = (unsigned int)'\r';
+    }
+    while (*UART_BASE & 1U);
     *UART_BASE = (unsigned int)c;
 }
 
@@ -12,7 +15,7 @@ static void uart_puts(const char *s) {
 }
 
 static void uart_putu(unsigned int n) {
-    char buf[10];
+    unsigned int buf[10];
     int i = 0;
     unsigned int div, digit;
     if (n == 0) { uart_putc('0'); return; }
@@ -21,11 +24,11 @@ static void uart_putu(unsigned int n) {
         div = 0;
         digit = n;
         while (digit >= 10) { digit -= 10; div++; }
-        buf[i++] = '0' + digit;
+        buf[i++] = digit;
         n = div;
     }
     while (i > 0)
-        uart_putc(buf[--i]);
+        uart_putc((char)('0' + buf[--i]));
 }
 
 void main(void) {
