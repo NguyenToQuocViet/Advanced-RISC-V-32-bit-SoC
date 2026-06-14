@@ -25,7 +25,7 @@
 //                MEM1/MEM2 + MEM2/WB: never flushed.
 // -----------------------------------------------------------------------------
 
-module hazard_ctrl
+module hazard_ctrl_7stg
     import cpu_pkg::*;
 (
     //hazard sources

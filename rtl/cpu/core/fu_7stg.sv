@@ -21,7 +21,7 @@
 // Version      : 2.0
 // -----------------------------------------------------------------------------
 
-module fu
+module fu_7stg
     import cpu_pkg::*;
 (
     //ex stage (register dang duoc dung)

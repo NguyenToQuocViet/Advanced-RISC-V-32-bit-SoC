@@ -24,7 +24,7 @@
 // Changes      : 7-stage: MEM1 + MEM2 separate sources, each with wb_sel check.
 // -----------------------------------------------------------------------------
 
-module fwd_mux
+module fwd_mux_7stg
     import cpu_pkg::*;
 (
     //forward select from FU
