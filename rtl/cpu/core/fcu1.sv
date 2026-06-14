@@ -20,7 +20,7 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-03-15
-// Version      : 2.1
+// Version      : 2.2
 // Changes v1.2 : optimize by remove redundant guard, documenting
 // Changes v1.3 : migrate cwf_consumed + if_id_flush from riscv_core.sv
 // Changes v2.0 : reconstruct all the pipeline to ASIC friendly. IF now split
@@ -29,6 +29,7 @@
 // Changes v2.1 : remove ignore_valid — proven redundant after icache tag-compare
 //                was added to all output paths (REFILL_DONE, CWF bypass, IDLE hit).
 //                Verified: rv32ui 38/38 PASS without ignore_valid.
+// Changes v2.2 : launch next PC while consuming current I-cache response.
 // -----------------------------------------------------------------------------
 
 module fcu1
@@ -63,10 +64,10 @@ module fcu1
     //PC Control
     logic [ADDR_WIDTH-1:0] pc_reg;
     logic [ADDR_WIDTH-1:0] next_pc;
+    logic [ADDR_WIDTH-1:0] launch_pc;
 
-    always_comb begin
-        next_pc = pc_reg + 4;
-    end
+    assign next_pc   = pc_reg + 4;
+    assign launch_pc = (!stall && cache_advance) ? next_pc : pc_reg;
 
     //PC Update
     //PRIORITY 1: EX mispredict redirect
@@ -85,12 +86,12 @@ module fcu1
         end
     end
 
-    //output to icache
-    assign if_pc        = pc_reg;
+    //Launch next request while consuming current response
+    assign if_pc        = launch_pc;
     assign if_req       = !stall && !ex_mispredict;
 
     //output to IF1/IF2 pipeline
-    assign if1_if2_pc          = pc_reg;
+    assign if1_if2_pc          = launch_pc;
     assign if1_if2_pred_taken  = pred_taken_i;
     assign if1_if2_flush       = ex_mispredict | if2_redirect;
 endmodule
