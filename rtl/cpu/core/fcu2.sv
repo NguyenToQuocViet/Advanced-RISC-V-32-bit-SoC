@@ -21,10 +21,12 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-28
-// Version      : 1.1
+// Version      : 1.2
 // Changes v1.1 : remove ignore_valid — proven redundant after icache tag-compare
 //                was added to all output paths (REFILL_DONE, CWF bypass, IDLE hit).
 //                Verified: rv32ui 38/38 PASS without ignore_valid.
+// Changes v1.2 : qualify IF2 side effects with if2_valid. BTB redirect no longer
+//                flushes the producer branch before it reaches EX.
 // -----------------------------------------------------------------------------
 
 module fcu2
@@ -37,6 +39,9 @@ module fcu2
     input logic [DATA_WIDTH-1:0]    instr_i,
     input logic                     cache_valid,
     input logic                     cache_ready,
+
+    //IF1/IF2 metadata
+    input logic                     if2_valid,
 
     //branch prediction interface
     input logic                     pred_taken,
@@ -63,30 +68,33 @@ module fcu2
     //set: valid=1, ready=0, !stall -> capture 1st cycle
     //clear: ready=1 (refill done) or redirect (ex or if2) -> discard
     logic cwf_consumed;
+    logic if2_fire;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             cwf_consumed <= 1'b0;
         else if (cache_ready || ex_mispredict || if2_redirect)
             cwf_consumed <= 1'b0;
-        else if (cache_valid && !cache_ready && !stall)
+        else if (if2_valid && cache_valid && !cache_ready && !stall)
             cwf_consumed <= 1'b1;
     end
+
+    //IF2 fire: valid metadata + valid cache response accepted into IF2/ID
+    assign if2_fire            = if2_valid && cache_valid && !cwf_consumed && !stall;
 
     //output
     assign instr_o              = instr_i;
 
-    //tell fcu1 PC can advance: instruction valid and not a duplicate CWF
-    assign cache_advance        = cache_valid && cache_ready && !cwf_consumed;
+    //advance PC only for a live IF2 response
+    assign cache_advance        = if2_valid && cache_valid && cache_ready && !cwf_consumed;
 
-    //BTB taken: redirect fcu1 to pred_target, IF2 slot becomes bubble
-    //ex_mispredict overrides — EX correction takes priority over BTB redirect
-    assign if2_redirect         = pred_taken && !ex_mispredict;
+    //BTB taken redirects younger fetch; producer branch still enters IF2/ID
+    //EX correction takes priority over BTB redirect
+    assign if2_redirect         = if2_fire && pred_taken && !ex_mispredict;
     assign if2_redirect_pc      = pred_target;
 
-    //flush IF2/ID when: EX override, BTB redirect (IF2 bubble),
-    //no valid instruction, or duplicate CWF — stall holds (no flush)
-    assign if2_id_flush         = ex_mispredict | if2_redirect | ((!cache_valid || cwf_consumed) && !stall);
+    //flush IF2/ID only when current IF2 slot is not a real instruction
+    assign if2_id_flush         = ex_mispredict | ((!if2_valid || !cache_valid || cwf_consumed) && !stall);
 
     assign if2_id_pred_taken    = pred_taken;
     assign if2_id_pred_target   = pred_target;

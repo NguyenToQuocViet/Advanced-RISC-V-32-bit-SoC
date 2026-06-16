@@ -1,5 +1,14 @@
 # 7-Stage Pipeline Notes
 
+## FCU2 fixed bug: BTB redirect killed producer branch
+
+- Old RTL: `if2_redirect = pred_taken && !ex_mispredict`, then `if2_id_flush` also includes `if2_redirect`.
+- Failure: a predicted-taken branch in IF2 redirects FCU1 to `pred_target`, but the branch itself is flushed before entering ID/EX.
+- Consequence: EX never executes that branch, so the core cannot verify actual taken/target and cannot recover from a wrong prediction.
+- RTL fix: keep redirect as PC-control only; do not flush IF2/ID solely because of `if2_redirect`.
+- Guard used: invalid/no-cache-response cases still flush; side effects are qualified by `if2_valid`, `cache_valid`, CWF duplicate, or later EX mispredict.
+
+
 ## I-Cache refill-buffer bypass enhancement
 
 - Current design is blocking: after a miss, `rf_buffer` only serves the original critical-word request; `icache_ready` remains low during refill and `REFILL_DONE`.
