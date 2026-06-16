@@ -9,6 +9,16 @@
 - Guard used: invalid/no-cache-response cases still flush; side effects are qualified by `if2_valid`, `cache_valid`, CWF duplicate, or later EX mispredict.
 
 
+## D-Cache 7-stage boundary decision
+
+- D-cache must not invent a private `lookup_valid_q` as pipeline-slot validity.
+- MEM1/MEM2 validity belongs to LSU/pipeline control, symmetric with IF1/IF2 `if2_valid`.
+- `dcache_7stg` may delay cache-private refill metadata, but architectural request validity should enter as `mem2_valid_i` or equivalent pipeline metadata.
+- LSU1 launches the SRAM request in MEM1; MEM1/MEM2 pipeline carries valid/we/size/addr metadata; LSU2 consumes D-cache response in MEM2.
+- This keeps D-cache responsible for caching behavior only: tag/data lookup, refill, write-buffer forwarding, and ready/valid response.
+- Store hit consumes the 1RW SRAM port to update the cached word; the next request is launched from STORE_DONE, not from the same response cycle.
+- This avoids request/response metadata misalignment after a store-hit stall.
+
 ## I-Cache refill-buffer bypass enhancement
 
 - Current design is blocking: after a miss, `rf_buffer` only serves the original critical-word request; `icache_ready` remains low during refill and `REFILL_DONE`.
