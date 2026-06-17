@@ -25,6 +25,7 @@
 
 module lsu1
     import cpu_pkg::*;
+    import cache_pkg::STRB_WIDTH;
 (
     //pipeline reg interface
     input logic                     mem_req,
@@ -55,7 +56,7 @@ module lsu1
     
     //mask strobe for write
     always_comb begin
-        case (mem_size)
+        case (mem_size[1:0])
             //byte
             2'b00: begin
                 case (addr[1:0])
@@ -85,7 +86,7 @@ module lsu1
 
     //byte replicate for wdata
     always_comb begin
-        case (mem_size)
+        case (mem_size[1:0])
             2'b00: dc_wdata    = {4{wdata[7:0]}};   //byte
             2'b01: dc_wdata    = {2{wdata[15:0]}};  //half word
             2'b10: dc_wdata = wdata;                //word

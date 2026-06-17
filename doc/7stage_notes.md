@@ -11,13 +11,12 @@
 
 ## D-Cache 7-stage boundary decision
 
-- D-cache must not invent a private `lookup_valid_q` as pipeline-slot validity.
-- MEM1/MEM2 validity belongs to LSU/pipeline control, symmetric with IF1/IF2 `if2_valid`.
-- `dcache_7stg` may delay cache-private refill metadata, but architectural request validity should enter as `mem2_valid_i` or equivalent pipeline metadata.
-- LSU1 launches the SRAM request in MEM1; MEM1/MEM2 pipeline carries valid/we/size/addr metadata; LSU2 consumes D-cache response in MEM2.
-- This keeps D-cache responsible for caching behavior only: tag/data lookup, refill, write-buffer forwarding, and ready/valid response.
-- Store hit consumes the 1RW SRAM port to update the cached word; the next request is launched from STORE_DONE, not from the same response cycle.
-- This avoids request/response metadata misalignment after a store-hit stall.
+- I-cache and D-cache use the same external contract: request enters cache, cache owns SRAM lookup metadata internally.
+- `lookup_valid_q` is cache-transaction validity, not architectural pipeline-slot validity.
+- LSU keeps the 5-stage-like D-cache interface: `addr`, `mem_req`, `mem_we`, `wdata`, `wstrb`.
+- MEM1/MEM2 pipeline carries architectural load metadata only: `addr_lsb`, `mem_size`, WB controls.
+- Store hit consumes the 1RW SRAM port to update the cached word; the next request is launched from `STORE_DONE`, not from the same response cycle.
+- This keeps I-cache/D-cache timing contracts symmetric and avoids public cache-internal tag/index metadata.
 
 ## I-Cache refill-buffer bypass enhancement
 

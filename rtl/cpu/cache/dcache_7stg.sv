@@ -15,14 +15,15 @@
 // Project      : Advanced RISC-V 32-bit Processor
 // Module       : dcache_7stg
 // Description  : 4KB 2-way set-associative D-Cache for 7-stage pipeline.
-//                Request side launches synchronous SRAM read.
-//                Response side consumes SRAM dout, checks tag, and returns data.
+//                D-Cache owns SRAM lookup metadata internally, same contract as
+//                I-Cache: request in cycle N, response resolved in cycle N+1.
 //                Write-through + write-buffer forwarding behavior is preserved.
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-06-16
-// Version      : 1.2
-// Changes v1.2 : Store-hit update uses 1RW SRAM safely before next launch.
+// Version      : 2.0
+// Changes v2.0 : Restore 5-stage external interface; latch lookup metadata
+//                inside cache for SRAM response alignment.
 // -----------------------------------------------------------------------------
 
 module dcache_7stg
@@ -31,22 +32,14 @@ module dcache_7stg
     //system
     input logic clk, rst_n,
 
-    //request side - launch SRAM read
-    input logic [DC_IDX_BITS-1:0]   req_idx,
+    //lsu - d-cache interface
+    input logic [ADDR_WIDTH-1:0]    addr,
     input logic                     mem_req,
+    input logic                     mem_we,
 
-    //response metadata - from external pipeline
-    input logic                     resp_valid,
-    input logic                     resp_we,
-    input logic [DC_TAG_BITS-1:0]   resp_tag,
-    input logic [DC_IDX_BITS-1:0]   resp_idx,
-    input logic [WORD_SEL_BITS-1:0] resp_word_sel,
-    input logic                     resp_uncacheable,
-    input logic [ADDR_WIDTH-1:0]    resp_line_addr,
-    input logic [DATA_WIDTH-1:0]    resp_wdata,
-    input logic [STRB_WIDTH-1:0]    resp_wstrb,
+    input logic [DATA_WIDTH-1:0]    wdata,
+    input logic [STRB_WIDTH-1:0]    wstrb,
 
-    //response side - to LSU2
     output logic [DATA_WIDTH-1:0]   rdata,
     output logic                    dcache_ready,
     output logic                    dcache_valid,
@@ -76,6 +69,30 @@ module dcache_7stg
     output logic [ADDR_WIDTH-1:0]   dcache_addr
 );
     localparam LINE_WIDTH = DATA_WIDTH * WORDS_PER_LINE;
+
+    //address decode - live MEM1 request
+    logic [WORD_SEL_BITS-1:0] addr_word_sel;
+    logic [DC_IDX_BITS-1:0]   addr_idx;
+    logic [DC_TAG_BITS-1:0]   addr_tag;
+    logic [ADDR_WIDTH-1:0]    addr_word_base;
+    logic                     addr_uncacheable;
+
+    assign addr_word_sel    = addr[WORD_OFF_BITS +: WORD_SEL_BITS];
+    assign addr_idx         = addr[LINE_OFF_BITS +: DC_IDX_BITS];
+    assign addr_tag         = addr[ADDR_WIDTH-1 -: DC_TAG_BITS];
+    assign addr_word_base   = addr & {{(ADDR_WIDTH-WORD_OFF_BITS){1'b1}}, {WORD_OFF_BITS{1'b0}}};
+    assign addr_uncacheable = (addr[ADDR_WIDTH-1 -: 4] == 4'h1);
+
+    //lookup metadata - delayed to align with SRAM dout
+    logic                       lookup_valid_q;
+    logic                       lookup_we_q;
+    logic [DC_TAG_BITS-1:0]     lookup_tag_q;
+    logic [DC_IDX_BITS-1:0]     lookup_idx_q;
+    logic [WORD_SEL_BITS-1:0]   lookup_word_sel_q;
+    logic                       lookup_uncacheable_q;
+    logic [ADDR_WIDTH-1:0]      lookup_word_base_q;
+    logic [DATA_WIDTH-1:0]      lookup_wdata_q;
+    logic [STRB_WIDTH-1:0]      lookup_wstrb_q;
 
     //SRAM storage
     logic                           tag_csb;
@@ -147,7 +164,7 @@ module dcache_7stg
         .dout  (data1_dout)
     );
 
-    //response lookup
+    //lookup result
     logic [DC_TAG_BITS-1:0] tag_way0;
     logic [DC_TAG_BITS-1:0] tag_way1;
     logic [DC_WAYS-1:0]     way_hit;
@@ -160,13 +177,13 @@ module dcache_7stg
     assign tag_way0 = tag_dout[0*DC_TAG_BITS +: DC_TAG_BITS];
     assign tag_way1 = tag_dout[1*DC_TAG_BITS +: DC_TAG_BITS];
 
-    assign way_hit[0] = resp_valid && cache_valid[resp_idx][0] && (tag_way0 == resp_tag);
-    assign way_hit[1] = resp_valid && cache_valid[resp_idx][1] && (tag_way1 == resp_tag);
-    assign cache_hit  = |way_hit && !resp_uncacheable;
+    assign way_hit[0] = lookup_valid_q && cache_valid[lookup_idx_q][0] && (tag_way0 == lookup_tag_q);
+    assign way_hit[1] = lookup_valid_q && cache_valid[lookup_idx_q][1] && (tag_way1 == lookup_tag_q);
+    assign cache_hit  = |way_hit && !lookup_uncacheable_q;
     assign hit_way    = way_hit[1];
 
-    assign data0_word  = data0_dout[resp_word_sel*DATA_WIDTH +: DATA_WIDTH];
-    assign data1_word  = data1_dout[resp_word_sel*DATA_WIDTH +: DATA_WIDTH];
+    assign data0_word  = data0_dout[lookup_word_sel_q*DATA_WIDTH +: DATA_WIDTH];
+    assign data1_word  = data1_dout[lookup_word_sel_q*DATA_WIDTH +: DATA_WIDTH];
     assign cache_rdata = hit_way ? data1_word : data0_word;
 
     //write-buffer forwarding
@@ -174,8 +191,8 @@ module dcache_7stg
     logic                  fwd_hit_eff;
     logic                  fwd_full_cover;
 
-    assign fwd_addr       = resp_line_addr;
-    assign fwd_hit_eff    = fwd_hit && !resp_uncacheable;
+    assign fwd_addr       = lookup_word_base_q;
+    assign fwd_hit_eff    = fwd_hit && !lookup_uncacheable_q;
     assign fwd_full_cover = fwd_hit_eff && (&fwd_strb);
 
     always_comb begin
@@ -195,21 +212,18 @@ module dcache_7stg
     logic store_req;
     logic store_accept;
     logic store_hit_update;
-    logic req_launch_ok;
+    logic store_miss_accept;
+    logic lookup_done;
 
-    assign load_req         = resp_valid && !resp_we;
+    assign load_req         = lookup_valid_q && !lookup_we_q;
     assign load_hit         = load_req && cache_hit;
     assign load_fwd_full    = load_req && fwd_full_cover;
     assign load_miss_real   = load_req && !cache_hit && !fwd_full_cover;
-    assign store_req        = resp_valid && resp_we;
+    assign store_req        = lookup_valid_q && lookup_we_q;
     assign store_accept     = store_req && !wb_full;
     assign store_hit_update = store_accept && cache_hit;
-
-    //launch only when response side will not occupy SRAM next cycle
-    assign req_launch_ok = !resp_valid ||
-                           load_hit ||
-                           load_fwd_full ||
-                           (store_accept && !cache_hit);
+    assign store_miss_accept = store_accept && !cache_hit;
+    assign lookup_done      = load_hit || load_fwd_full || store_miss_accept;
 
     //store hit update
     logic [LINE_WIDTH-1:0]     hit_line;
@@ -224,14 +238,14 @@ module dcache_7stg
     always_comb begin
         store_line_next = hit_line;
         for (int b = 0; b < STRB_WIDTH; b++) begin
-            if (resp_wstrb[b])
-                store_line_next[resp_word_sel*DATA_WIDTH + b*8 +: 8] = resp_wdata[b*8 +: 8];
+            if (lookup_wstrb_q[b])
+                store_line_next[lookup_word_sel_q*DATA_WIDTH + b*8 +: 8] = lookup_wdata_q[b*8 +: 8];
         end
     end
 
     always_comb begin
         store_wmask_next = '0;
-        store_wmask_next[resp_word_sel] = 1'b1;
+        store_wmask_next[lookup_word_sel_q] = 1'b1;
     end
 
     //refill buffer
@@ -246,17 +260,18 @@ module dcache_7stg
     logic [DATA_WIDTH-1:0]      rf_merged_rdata;
     logic                       cwf_valid;
 
-    assign rf_buffer_hit = rf_valid[resp_word_sel] &&
-                           (rf_idx == resp_idx) &&
-                           (rf_tag == resp_tag);
-    assign cwf_valid     = load_req && rf_buffer_hit;
+    assign rf_buffer_hit = lookup_valid_q &&
+                           rf_valid[lookup_word_sel_q] &&
+                           (rf_idx == lookup_idx_q) &&
+                           (rf_tag == lookup_tag_q);
+    assign cwf_valid     = load_req && rf_buffer_hit && !rf_uncacheable;
 
     always_comb begin
         for (int b = 0; b < STRB_WIDTH; b++) begin
             if (fwd_hit_eff && fwd_strb[b])
                 rf_merged_rdata[b*8 +: 8] = fwd_data[b*8 +: 8];
             else
-                rf_merged_rdata[b*8 +: 8] = rf_buffer[resp_word_sel][b*8 +: 8];
+                rf_merged_rdata[b*8 +: 8] = rf_buffer[lookup_word_sel_q][b*8 +: 8];
         end
     end
 
@@ -284,6 +299,7 @@ module dcache_7stg
     //fsm
     typedef enum logic [2:0] {
         IDLE,
+        LOOKUP,
         STORE_DONE,
         REFILL_REQ,
         REFILL_DATA,
@@ -298,15 +314,22 @@ module dcache_7stg
 
         case (state)
             IDLE: begin
+                if (mem_req)
+                    next_state = LOOKUP;
+            end
+
+            LOOKUP: begin
                 if (load_miss_real)
                     next_state = REFILL_REQ;
                 else if (store_hit_update)
                     next_state = STORE_DONE;
+                else if (lookup_done)
+                    next_state = mem_req ? LOOKUP : IDLE;
             end
 
             STORE_DONE: begin
                 if (!wb_full)
-                    next_state = IDLE;
+                    next_state = mem_req ? LOOKUP : IDLE;
             end
 
             REFILL_REQ: begin
@@ -332,24 +355,36 @@ module dcache_7stg
     //FSM: control registers
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            state       <= IDLE;
-            cache_valid <= '0;
-            rf_valid    <= '0;
-            lru         <= '0;
+            state          <= IDLE;
+            cache_valid    <= '0;
+            rf_valid       <= '0;
+            lru            <= '0;
+            lookup_valid_q <= 1'b0;
         end else begin
             state <= next_state;
 
             case (state)
                 IDLE: begin
+                    lookup_valid_q <= mem_req;
+                end
+
+                LOOKUP: begin
                     if (load_hit)
-                        lru[resp_idx] <= ~hit_way;
+                        lru[lookup_idx_q] <= ~hit_way;
                     else if (store_hit_update)
-                        lru[resp_idx] <= ~hit_way;
+                        lru[lookup_idx_q] <= ~hit_way;
                     else if (load_miss_real)
                         rf_valid <= '0;
+
+                    if (lookup_done)
+                        lookup_valid_q <= mem_req;
+                    else if (store_hit_update || load_miss_real)
+                        lookup_valid_q <= lookup_valid_q;
                 end
 
                 STORE_DONE: begin
+                    if (!wb_full)
+                        lookup_valid_q <= mem_req;
                 end
 
                 REFILL_REQ: begin
@@ -365,10 +400,12 @@ module dcache_7stg
                         cache_valid[rf_idx][evict_way] <= 1'b1;
                         lru[rf_idx] <= ~evict_way;
                     end
-                    rf_valid <= '0;
+                    rf_valid       <= '0;
+                    lookup_valid_q <= 1'b0;
                 end
 
                 default: begin
+                    lookup_valid_q <= 1'b0;
                 end
             endcase
         end
@@ -378,19 +415,53 @@ module dcache_7stg
     always_ff @(posedge clk) begin
         case (state)
             IDLE: begin
+                if (mem_req) begin
+                    lookup_we_q          <= mem_we;
+                    lookup_tag_q         <= addr_tag;
+                    lookup_idx_q         <= addr_idx;
+                    lookup_word_sel_q    <= addr_word_sel;
+                    lookup_uncacheable_q <= addr_uncacheable;
+                    lookup_word_base_q   <= addr_word_base;
+                    lookup_wdata_q       <= wdata;
+                    lookup_wstrb_q       <= wstrb;
+                end
+            end
+
+            LOOKUP: begin
+                if (lookup_done && mem_req) begin
+                    lookup_we_q          <= mem_we;
+                    lookup_tag_q         <= addr_tag;
+                    lookup_idx_q         <= addr_idx;
+                    lookup_word_sel_q    <= addr_word_sel;
+                    lookup_uncacheable_q <= addr_uncacheable;
+                    lookup_word_base_q   <= addr_word_base;
+                    lookup_wdata_q       <= wdata;
+                    lookup_wstrb_q       <= wstrb;
+                end
+
                 if (load_miss_real) begin
-                    rf_tag         <= resp_tag;
-                    rf_idx         <= resp_idx;
-                    rf_word_sel    <= resp_word_sel;
-                    rf_uncacheable <= resp_uncacheable;
+                    rf_tag         <= lookup_tag_q;
+                    rf_idx         <= lookup_idx_q;
+                    rf_word_sel    <= lookup_word_sel_q;
+                    rf_uncacheable <= lookup_uncacheable_q;
                 end else if (store_hit_update) begin
-                    store_addr_q  <= resp_line_addr;
-                    store_wdata_q <= resp_wdata;
-                    store_wstrb_q <= resp_wstrb;
+                    store_addr_q  <= lookup_word_base_q;
+                    store_wdata_q <= lookup_wdata_q;
+                    store_wstrb_q <= lookup_wstrb_q;
                 end
             end
 
             STORE_DONE: begin
+                if (!wb_full && mem_req) begin
+                    lookup_we_q          <= mem_we;
+                    lookup_tag_q         <= addr_tag;
+                    lookup_idx_q         <= addr_idx;
+                    lookup_word_sel_q    <= addr_word_sel;
+                    lookup_uncacheable_q <= addr_uncacheable;
+                    lookup_word_base_q   <= addr_word_base;
+                    lookup_wdata_q       <= wdata;
+                    lookup_wstrb_q       <= wstrb;
+                end
             end
 
             REFILL_REQ: begin
@@ -415,50 +486,66 @@ module dcache_7stg
     always_comb begin
         tag_csb       = 1'b1;
         tag_web       = 1'b1;
-        tag_addr      = req_idx;
+        tag_addr      = addr_idx;
         tag_din       = {DC_WAYS{rf_tag}};
         tag_wmask     = '0;
 
         data0_csb     = 1'b1;
         data0_web     = 1'b1;
-        data0_addr    = req_idx;
+        data0_addr    = addr_idx;
         data0_din     = refill_line;
         data0_wmask   = '0;
 
         data1_csb     = 1'b1;
         data1_web     = 1'b1;
-        data1_addr    = req_idx;
+        data1_addr    = addr_idx;
         data1_din     = refill_line;
         data1_wmask   = '0;
 
         case (state)
             IDLE: begin
+                if (mem_req) begin
+                    tag_csb    = 1'b0;
+                    tag_web    = 1'b1;
+                    tag_addr   = addr_idx;
+
+                    data0_csb  = 1'b0;
+                    data0_web  = 1'b1;
+                    data0_addr = addr_idx;
+
+                    data1_csb  = 1'b0;
+                    data1_web  = 1'b1;
+                    data1_addr = addr_idx;
+                end
+            end
+
+            LOOKUP: begin
                 if (store_hit_update) begin
                     if (!hit_way) begin
                         data0_csb   = 1'b0;
                         data0_web   = 1'b0;
-                        data0_addr  = resp_idx;
+                        data0_addr  = lookup_idx_q;
                         data0_din   = store_line_next;
                         data0_wmask = store_wmask_next;
                     end else begin
                         data1_csb   = 1'b0;
                         data1_web   = 1'b0;
-                        data1_addr  = resp_idx;
+                        data1_addr  = lookup_idx_q;
                         data1_din   = store_line_next;
                         data1_wmask = store_wmask_next;
                     end
-                end else if (mem_req && req_launch_ok) begin
+                end else if (lookup_done && mem_req) begin
                     tag_csb    = 1'b0;
                     tag_web    = 1'b1;
-                    tag_addr   = req_idx;
+                    tag_addr   = addr_idx;
 
                     data0_csb  = 1'b0;
                     data0_web  = 1'b1;
-                    data0_addr = req_idx;
+                    data0_addr = addr_idx;
 
                     data1_csb  = 1'b0;
                     data1_web  = 1'b1;
-                    data1_addr = req_idx;
+                    data1_addr = addr_idx;
                 end
             end
 
@@ -466,15 +553,15 @@ module dcache_7stg
                 if (!wb_full && mem_req) begin
                     tag_csb    = 1'b0;
                     tag_web    = 1'b1;
-                    tag_addr   = req_idx;
+                    tag_addr   = addr_idx;
 
                     data0_csb  = 1'b0;
                     data0_web  = 1'b1;
-                    data0_addr = req_idx;
+                    data0_addr = addr_idx;
 
                     data1_csb  = 1'b0;
                     data1_web  = 1'b1;
-                    data1_addr = req_idx;
+                    data1_addr = addr_idx;
                 end
             end
 
@@ -526,27 +613,25 @@ module dcache_7stg
 
         case (state)
             IDLE: begin
-                if (!resp_valid) begin
+                dcache_ready = 1'b1;
+            end
+
+            LOOKUP: begin
+                if (load_hit) begin
+                    rdata        = merged_rdata;
+                    dcache_valid = 1'b1;
                     dcache_ready = 1'b1;
-                end else if (store_req) begin
-                    if (!wb_full && !cache_hit) begin
-                        wb_push      = 1'b1;
-                        wb_addr      = resp_line_addr;
-                        wb_data      = resp_wdata;
-                        wb_strb      = resp_wstrb;
-                        dcache_valid = 1'b1;
-                        dcache_ready = 1'b1;
-                    end
-                end else begin
-                    if (load_hit) begin
-                        rdata        = merged_rdata;
-                        dcache_valid = 1'b1;
-                        dcache_ready = 1'b1;
-                    end else if (load_fwd_full) begin
-                        rdata        = fwd_data;
-                        dcache_valid = 1'b1;
-                        dcache_ready = 1'b1;
-                    end
+                end else if (load_fwd_full) begin
+                    rdata        = fwd_data;
+                    dcache_valid = 1'b1;
+                    dcache_ready = 1'b1;
+                end else if (store_miss_accept) begin
+                    wb_push      = 1'b1;
+                    wb_addr      = lookup_word_base_q;
+                    wb_data      = lookup_wdata_q;
+                    wb_strb      = lookup_wstrb_q;
+                    dcache_valid = 1'b1;
+                    dcache_ready = 1'b1;
                 end
             end
 
