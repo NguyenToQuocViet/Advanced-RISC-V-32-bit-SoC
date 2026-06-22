@@ -21,12 +21,13 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-28
-// Version      : 1.2
+// Version      : 1.3
 // Changes v1.1 : remove ignore_valid — proven redundant after icache tag-compare
 //                was added to all output paths (REFILL_DONE, CWF bypass, IDLE hit).
 //                Verified: rv32ui 38/38 PASS without ignore_valid.
 // Changes v1.2 : qualify IF2 side effects with if2_valid. BTB redirect no longer
 //                flushes the producer branch before it reaches EX.
+// Changes v1.3 : keep cwf_consumed set across IF2 redirect to block duplicate CWF.
 // -----------------------------------------------------------------------------
 
 module fcu2
@@ -66,14 +67,14 @@ module fcu2
 );
     //cwf_consumed: CWF instr da duoc IF2/ID capture
     //set: valid=1, ready=0, !stall -> capture 1st cycle
-    //clear: ready=1 (refill done) or redirect (ex or if2) -> discard
+    //clear: ready=1 (refill done) or EX redirect -> discard
     logic cwf_consumed;
     logic if2_fire;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             cwf_consumed <= 1'b0;
-        else if (cache_ready || ex_mispredict || if2_redirect)
+        else if (cache_ready || ex_mispredict)
             cwf_consumed <= 1'b0;
         else if (if2_valid && cache_valid && !cache_ready && !stall)
             cwf_consumed <= 1'b1;
