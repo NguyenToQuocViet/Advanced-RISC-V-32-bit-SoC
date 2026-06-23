@@ -21,13 +21,14 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-28
-// Version      : 1.3
+// Version      : 1.4
 // Changes v1.1 : remove ignore_valid — proven redundant after icache tag-compare
 //                was added to all output paths (REFILL_DONE, CWF bypass, IDLE hit).
 //                Verified: rv32ui 38/38 PASS without ignore_valid.
 // Changes v1.2 : qualify IF2 side effects with if2_valid. BTB redirect no longer
 //                flushes the producer branch before it reaches EX.
 // Changes v1.3 : keep cwf_consumed set across IF2 redirect to block duplicate CWF.
+// Changes v1.4 : advance fetch stream on first CWF consume, not only cache_ready.
 // -----------------------------------------------------------------------------
 
 module fcu2
@@ -86,8 +87,8 @@ module fcu2
     //output
     assign instr_o              = instr_i;
 
-    //advance PC only for a live IF2 response
-    assign cache_advance        = if2_valid && cache_valid && cache_ready && !cwf_consumed;
+    //advance fetch stream when IF2 sees a new live response
+    assign cache_advance        = if2_valid && cache_valid && !cwf_consumed;
 
     //BTB taken redirects younger fetch; producer branch still enters IF2/ID
     //EX correction takes priority over BTB redirect

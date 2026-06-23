@@ -21,7 +21,8 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-05-07
-// Version      : 2.3
+// Version      : 2.4
+// Changes v2.4 : keep flush_refill out of same-cycle response-valid path.
 // Changes v2.3 : REFILL_DONE deasserts ready while 1RW SRAM commits refill line.
 // Changes v2.2 : SRAM-based tag/data storage using sram_1rw wrappers.
 //                Adds LOOKUP state for sync-read return timing.
@@ -312,7 +313,7 @@ module icache_7stg
             end
 
             REFILL_DONE: begin
-                if (!refill_squash) begin
+                if (!rf_abandon) begin
                     tag_csb   = 1'b0;
                     tag_web   = 1'b0;
                     tag_addr  = rf_idx;
@@ -359,7 +360,7 @@ module icache_7stg
             end
 
             REFILL_DONE: begin
-                if (!refill_squash &&
+                if (!rf_abandon &&
                     (rf_tag == lookup_tag_q) &&
                     (rf_idx == lookup_idx_q) &&
                     rf_valid[lookup_word_sel_q]) begin
