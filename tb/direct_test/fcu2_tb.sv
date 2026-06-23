@@ -358,7 +358,7 @@ module fcu2_tb;
         #1;
 
         expect_ctrl(
-            1'b0,
+            1'b1,
             1'b0,
             32'h0000_01c0,
             1'b0,
@@ -422,7 +422,7 @@ module fcu2_tb;
         #1;
 
         expect_ctrl(
-            1'b0,
+            1'b1,
             1'b1,
             32'h0000_0200,
             1'b0,
@@ -510,7 +510,7 @@ module fcu2_tb;
         pred_target   = 32'h0000_02c0;
 
         #1;
-        expect_ctrl(1'b0, 1'b0, 32'h0000_02c0, 1'b0, "stress cwf first ctrl");
+        expect_ctrl(1'b1, 1'b0, 32'h0000_02c0, 1'b0, "stress cwf first ctrl");
         expect_pipe (32'h0080_0493, 1'b0, 32'h0000_02c0, "stress cwf first pipe");
 
         step();
