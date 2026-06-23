@@ -21,9 +21,10 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-06-16
-// Version      : 2.0
+// Version      : 2.1
 // Changes v2.0 : Restore 5-stage external interface; latch lookup metadata
 //                inside cache for SRAM response alignment.
+// Changes v2.1 : Uncacheable refill still returns data; only cache allocate is blocked.
 // -----------------------------------------------------------------------------
 
 module dcache_7stg
@@ -264,7 +265,7 @@ module dcache_7stg
                            rf_valid[lookup_word_sel_q] &&
                            (rf_idx == lookup_idx_q) &&
                            (rf_tag == lookup_tag_q);
-    assign cwf_valid     = load_req && rf_buffer_hit && !rf_uncacheable;
+    assign cwf_valid     = load_req && rf_buffer_hit;
 
     always_comb begin
         for (int b = 0; b < STRB_WIDTH; b++) begin
