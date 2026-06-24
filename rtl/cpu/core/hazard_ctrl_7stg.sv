@@ -19,10 +19,10 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-30
-// Version      : 2.0
+// Version      : 2.1
 // Changes      : 7-stage: if2_id_stall + mem1_mem2_stall added.
 //                mispred flush: IF1/IF2 + IF2/ID + ID/EX + EX/MEM1.
-//                MEM1/MEM2 + MEM2/WB: never flushed.
+// Changes v2.1 : Split MEM1 launch wait from MEM2 response wait.
 // -----------------------------------------------------------------------------
 
 module hazard_ctrl_7stg
@@ -30,7 +30,9 @@ module hazard_ctrl_7stg
 (
     //hazard sources
     input  logic    load_use_stall,
-    input  logic    dcache_stall,
+    input  logic    dcache_mem1_stall,
+    input  logic    dcache_mem2_stall,
+    input  logic    dcache_resp_flush,
     input  logic    ex_flush,
     input  logic    mispredict_r,
 
@@ -49,24 +51,24 @@ module hazard_ctrl_7stg
     output logic    mem1_mem2_flush,
     output logic    mem2_wb_flush
 );
-    //dcache miss: freeze toan pipeline
-    //load-use: freeze IF1/IF2 + IF2/ID (cho consumer het stall)
-    assign fcu1_stall     = dcache_stall | load_use_stall;
-    assign if1_if2_stall  = dcache_stall | load_use_stall;
-    assign if2_id_stall   = dcache_stall | load_use_stall;
-    assign id_ex_stall    = dcache_stall;
-    assign ex_mem1_stall  = dcache_stall;
-    assign mem1_mem2_stall = dcache_stall;
-    assign mem2_wb_stall  = dcache_stall;
+    logic dcache_upstream_stall;
 
-    //mispredict: flush wrong-path stages (IF2/ID, ID/EX, EX/MEM1)
-    //IF1/IF2 flush owned by FCU1 (if1_if2_flush = mispredict_r | if2_redirect)
-    //load-use ex_flush: kill ID/EX only
-    //MEM1/MEM2, MEM2/WB: never flushed (da commit)
+    assign dcache_upstream_stall = dcache_mem1_stall | dcache_mem2_stall;
 
-    //note: IF2/ID flush do ben ngoai (FCU2 cung cap if2_id_flush)
-    assign id_ex_flush    = mispredict_r | ex_flush;
-    assign ex_mem1_flush  = mispredict_r;
-    assign mem1_mem2_flush = 1'b0;
-    assign mem2_wb_flush  = 1'b0;
+    //load-use: hold fetch/decode, inject bubble into EX
+    //D-cache wait: hold upstream until MEM1 can launch or MEM2 can retire
+    assign fcu1_stall      = dcache_upstream_stall | load_use_stall;
+    assign if1_if2_stall   = dcache_upstream_stall | load_use_stall;
+    assign if2_id_stall    = dcache_upstream_stall | load_use_stall;
+    assign id_ex_stall     = dcache_upstream_stall;
+    assign ex_mem1_stall   = dcache_upstream_stall;
+    assign mem1_mem2_stall = dcache_upstream_stall;
+    assign mem2_wb_stall   = dcache_mem2_stall;
+
+    //mispredict: flush wrong-path stages
+    //MEM2 response flush clears stale MEM1 payload after a waited response
+    assign id_ex_flush     = mispredict_r | ex_flush;
+    assign ex_mem1_flush   = mispredict_r;
+    assign mem1_mem2_flush = dcache_resp_flush;
+    assign mem2_wb_flush   = 1'b0;
 endmodule
