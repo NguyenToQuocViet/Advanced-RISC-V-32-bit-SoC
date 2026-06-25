@@ -52,7 +52,7 @@ module riscv_core_7stg
 );
 
     //hazard / control
-    logic                   load_use_stall, ex_flush;
+    logic                   load_use_stall;
     logic                   dcache_mem1_stall, dcache_mem2_stall, dcache_resp_flush;
     logic                   fcu1_stall, if1_if2_stall, if2_id_stall;
     logic                   id_ex_stall, ex_mem1_stall, mem1_mem2_stall, mem2_wb_stall;
@@ -144,8 +144,7 @@ module riscv_core_7stg
     logic [4:0]             wb_rd;
     logic [DATA_WIDTH-1:0]  wb_wdata;
 
-    //D-cache wait split
-    assign dcache_mem1_stall = mem1_mem_req && !mem_ready_out;
+    //D-cache response overlap cleanup
     assign mem2_resp_fire    = mem2_mem_req && mem_valid_out;
     assign dcache_resp_flush = mem2_resp_fire && dcache_mem1_stall;
 
@@ -155,7 +154,6 @@ module riscv_core_7stg
         .dcache_mem1_stall (dcache_mem1_stall),
         .dcache_mem2_stall (dcache_mem2_stall),
         .dcache_resp_flush (dcache_resp_flush),
-        .ex_flush          (ex_flush),
         .mispredict_r      (mispredict_r),
         .fcu1_stall        (fcu1_stall),
         .if1_if2_stall     (if1_if2_stall),
@@ -191,10 +189,11 @@ module riscv_core_7stg
         .mem1_rd            (mem1_rd),
         .id_rs1             (id_rs1),
         .id_rs2             (id_rs2),
+        .mem1_mem_ready     (mem_ready_out),
         .mem2_mem_req       (mem2_mem_req),
         .mem2_mem_valid     (mem_valid_out),
         .load_use_stall     (load_use_stall),
-        .ex_flush           (ex_flush),
+        .dcache_mem1_stall  (dcache_mem1_stall),
         .dcache_mem2_stall  (dcache_mem2_stall)
     );
 

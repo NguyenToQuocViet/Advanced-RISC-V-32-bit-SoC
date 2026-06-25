@@ -14,13 +14,14 @@
 // -----------------------------------------------------------------------------
 // Project      : Advanced RISC-V 32-bit Processor
 // Module       : hazard detection unit (7-stage)
-// Description  : load-use (check EX+MEM1 -> 2-cycle stall) + MEM2 wait detect
+// Description  : load-use (check EX+MEM1 -> 2-cycle stall) + D-cache wait detect
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-30
-// Version      : 2.1
+// Version      : 2.2
 // Changes v2.1 : D-cache wait is detected from MEM2 response phase, not MEM1
 //                request launch phase.
+// Changes v2.2 : HDU owns both MEM1 request wait and MEM2 response wait detect.
 // -----------------------------------------------------------------------------
 
 module hdu_7stg
@@ -40,15 +41,18 @@ module hdu_7stg
     input logic [4:0]   id_rs1,
     input logic [4:0]   id_rs2,
 
+    //MEM1 dcache status
+    input logic         mem1_mem_ready,
+
     //MEM2 dcache status
     input logic         mem2_mem_req,
     input logic         mem2_mem_valid,
 
-    //stall IF+ID, flush ID/EX
+    //load-use detect
     output logic        load_use_stall,
-    output logic        ex_flush,
 
-    //MEM2 wait for D-cache response
+    //D-cache wait detect
+    output logic        dcache_mem1_stall,
     output logic        dcache_mem2_stall
 );
     logic load_in_ex, load_in_mem1;
@@ -60,8 +64,8 @@ module hdu_7stg
     assign load_use_stall = (load_in_ex   && (ex_rd   == id_rs1 || ex_rd   == id_rs2))
                           || (load_in_mem1 && (mem1_rd == id_rs1 || mem1_rd == id_rs2));
 
-    //flush ID/EX when stalling
-    assign ex_flush       = load_use_stall;
+    //MEM1 waits until D-cache can accept request launch
+    assign dcache_mem1_stall = mem1_mem_req && !mem1_mem_ready;
 
     //MEM2 waits after MEM1 request has moved across the stage boundary
     assign dcache_mem2_stall = mem2_mem_req && !mem2_mem_valid;
