@@ -16,7 +16,7 @@
 // Module       : MEM1/MEM2 Pipeline Register
 // Description  : MEM1-to-MEM2 pipeline register. Carries ALU result for
 //                forwarding (MEM2 source), LSU control for MEM2, and
-//                writeback signals. Never flushed by hazard logic.
+//                writeback signals. Can be flushed when MEM2 response retires while MEM1 is blocked.
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-29

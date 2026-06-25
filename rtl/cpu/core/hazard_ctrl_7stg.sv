@@ -19,11 +19,12 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-30
-// Version      : 2.2
+// Version      : 2.3
 // Changes      : 7-stage: if2_id_stall + mem1_mem2_stall added.
 //                mispred flush: IF1/IF2 + IF2/ID + ID/EX + EX/MEM1.
 // Changes v2.1 : Split MEM1 launch wait from MEM2 response wait.
 // Changes v2.2 : ID/EX load-use flush uses load_use_stall directly.
+// Changes v2.3 : MEM1/MEM2 response flush no longer shares stall semantic.
 // -----------------------------------------------------------------------------
 
 module hazard_ctrl_7stg
@@ -62,7 +63,7 @@ module hazard_ctrl_7stg
     assign if2_id_stall    = dcache_upstream_stall | load_use_stall;
     assign id_ex_stall     = dcache_upstream_stall;
     assign ex_mem1_stall   = dcache_upstream_stall;
-    assign mem1_mem2_stall = dcache_upstream_stall;
+    assign mem1_mem2_stall = dcache_upstream_stall & !dcache_resp_flush;
     assign mem2_wb_stall   = dcache_mem2_stall;
 
     //mispredict: flush wrong-path stages
