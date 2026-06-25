@@ -132,7 +132,6 @@ module riscv_core_7stg
     logic [4:0]             mem2_rd;
     logic [DATA_WIDTH-1:0]  mem2_rdata_ext;
     logic                   mem_valid_out, mem_ready_out;
-    logic                   mem2_resp_fire;
 
     //wb stage
     logic [ADDR_WIDTH-1:0]  wb_pc;
@@ -144,16 +143,12 @@ module riscv_core_7stg
     logic [4:0]             wb_rd;
     logic [DATA_WIDTH-1:0]  wb_wdata;
 
-    //D-cache response overlap cleanup
-    assign mem2_resp_fire    = mem2_mem_req && mem_valid_out;
-    assign dcache_resp_flush = mem2_resp_fire && dcache_mem1_stall;
-
     //hazard control distribution
     hazard_ctrl_7stg u_hazard_ctrl (
         .load_use_stall    (load_use_stall),
         .dcache_mem1_stall (dcache_mem1_stall),
         .dcache_mem2_stall (dcache_mem2_stall),
-        .dcache_resp_flush (dcache_resp_flush),
+        .dcache_resp_flush  (dcache_resp_flush),
         .mispredict_r      (mispredict_r),
         .fcu1_stall        (fcu1_stall),
         .if1_if2_stall     (if1_if2_stall),
@@ -194,7 +189,8 @@ module riscv_core_7stg
         .mem2_mem_valid     (mem_valid_out),
         .load_use_stall     (load_use_stall),
         .dcache_mem1_stall  (dcache_mem1_stall),
-        .dcache_mem2_stall  (dcache_mem2_stall)
+        .dcache_mem2_stall  (dcache_mem2_stall),
+        .dcache_resp_flush (dcache_resp_flush)
     );
 
     //fcu1: IF1 PC launch side

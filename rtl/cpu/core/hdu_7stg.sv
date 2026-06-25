@@ -18,10 +18,11 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-30
-// Version      : 2.2
+// Version      : 2.3
 // Changes v2.1 : D-cache wait is detected from MEM2 response phase, not MEM1
 //                request launch phase.
 // Changes v2.2 : HDU owns both MEM1 request wait and MEM2 response wait detect.
+// Changes v2.3 : HDU owns MEM2 response cleanup detect.
 // -----------------------------------------------------------------------------
 
 module hdu_7stg
@@ -53,7 +54,8 @@ module hdu_7stg
 
     //D-cache wait detect
     output logic        dcache_mem1_stall,
-    output logic        dcache_mem2_stall
+    output logic        dcache_mem2_stall,
+    output logic        dcache_resp_flush
 );
     logic load_in_ex, load_in_mem1;
 
@@ -69,4 +71,7 @@ module hdu_7stg
 
     //MEM2 waits after MEM1 request has moved across the stage boundary
     assign dcache_mem2_stall = mem2_mem_req && !mem2_mem_valid;
+
+    //Clear retired MEM2 slot when MEM1 remains blocked
+    assign dcache_resp_flush = mem2_mem_req && mem2_mem_valid && dcache_mem1_stall;
 endmodule
