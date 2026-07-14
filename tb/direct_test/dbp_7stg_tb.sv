@@ -35,6 +35,7 @@ module dbp_7stg_tb;
     logic                  if1_valid;
     logic                  stall;
     logic                  flush;
+    logic                  if2_consume;
 
     //IF2 prediction
     logic                  pred_taken;
@@ -53,6 +54,7 @@ module dbp_7stg_tb;
         .if1_valid        (if1_valid),
         .stall            (stall),
         .flush            (flush),
+        .if2_consume      (if2_consume),
         .pred_taken       (pred_taken),
         .pred_target      (pred_target),
         .ex_update_en     (ex_update_en),
@@ -80,6 +82,7 @@ module dbp_7stg_tb;
             if1_valid        = 1'b0;
             stall            = 1'b0;
             flush            = 1'b0;
+            if2_consume      = 1'b0;
             ex_update_en     = 1'b0;
             ex_pc            = '0;
             ex_actual_taken  = 1'b0;
@@ -163,6 +166,9 @@ module dbp_7stg_tb;
         begin
             launch_query(t_if1_pc, desc);
             expect_pred(exp_taken, exp_target, desc);
+            if2_consume = 1'b1;
+            step();
+            if2_consume = 1'b0;
         end
     endtask
 
@@ -230,7 +236,8 @@ module dbp_7stg_tb;
         check_query(PC_A, 1'b1, TGT_A, "update_en zero no change");
 
         //7. stall holds IF2 prediction metadata
-        check_query(PC_A, 1'b1, TGT_A, "stall baseline PC_A");
+        launch_query(PC_A, "stall baseline PC_A");
+        expect_pred(1'b1, TGT_A, "stall baseline PC_A");
 
         if1_pc    = PC_B;
         if1_valid = 1'b1;

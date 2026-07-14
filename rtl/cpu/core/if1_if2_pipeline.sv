@@ -31,6 +31,7 @@ module if1_if2_pipeline
 
     input  logic                    stall,
     input  logic                    flush,
+    input  logic                    if2_consume,
 
     //IF1 inputs
     input  logic [ADDR_WIDTH-1:0]   if1_pc_i,
@@ -49,11 +50,15 @@ module if1_if2_pipeline
             valid     <= 1'b0;
         end else begin
             if (flush) begin
-                pc        <= '0;
-                valid     <= 1'b0;
+                pc    <= '0;
+                valid <= 1'b0;
             end else if (!stall) begin
-                pc        <= if1_pc_i;
-                valid     <= if1_valid_i;
+                if (if1_valid_i) begin
+                    pc    <= if1_pc_i;
+                    valid <= 1'b1;
+                end else if (if2_consume) begin
+                    valid <= 1'b0;
+                end
             end
         end
     end

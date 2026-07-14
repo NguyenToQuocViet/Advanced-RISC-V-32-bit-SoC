@@ -34,6 +34,7 @@ module dbp_7stg
     input  logic                    if1_valid,
     input  logic                    stall,
     input  logic                    flush,
+    input  logic                    if2_consume,
 
     //IF2 prediction response
     output logic                    pred_taken,
@@ -90,11 +91,13 @@ module dbp_7stg
                 if2_tag_q         <= '0;
                 if2_bht_q         <= STRONGLY_NT;
                 if2_btb_valid_q   <= 1'b0;
-            end else if (!stall) begin
-                if2_query_valid_q <= if1_fire;
+            end else if (if1_fire) begin
+                if2_query_valid_q <= 1'b1;
                 if2_tag_q         <= if1_tag;
                 if2_bht_q         <= bht[if1_idx];
                 if2_btb_valid_q   <= btb_valid[if1_idx];
+            end else if (if2_consume) begin
+                if2_query_valid_q <= 1'b0;
             end
 
             if (ex_update_en && ex_actual_taken)

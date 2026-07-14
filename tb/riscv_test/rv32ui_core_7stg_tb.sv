@@ -35,6 +35,7 @@ module rv32ui_core_7stg_tb;
     logic [ADDR_WIDTH-1:0]  if_pc;
     logic [DATA_WIDTH-1:0]  if_instr;
     logic                   if_icache_ready, if_icache_valid;
+    logic                   if_icache_consume;
 
     logic [ADDR_WIDTH-1:0]  mem_addr;
     logic                   mem_req, mem_we;
@@ -117,6 +118,7 @@ module rv32ui_core_7stg_tb;
         .if_instr         (if_instr),
         .if_icache_ready  (if_icache_ready),
         .if_icache_valid  (if_icache_valid),
+        .if_icache_consume(if_icache_consume),
         .mem_addr         (mem_addr),
         .mem_req          (mem_req),
         .mem_we           (mem_we),

@@ -73,6 +73,7 @@ module riscv_soc_7stg
     logic                   if_req;
     logic [DATA_WIDTH-1:0]  if_instr;
     logic                   if_icache_ready, if_icache_valid;
+    logic                   if_icache_consume;
 
     logic [ADDR_WIDTH-1:0]  mem_addr;
     logic                   mem_req, mem_we;
@@ -91,6 +92,7 @@ module riscv_soc_7stg
         .if_instr         (if_instr),
         .if_icache_ready  (if_icache_ready),
         .if_icache_valid  (if_icache_valid),
+        .if_icache_consume(if_icache_consume),
         .mem_addr         (mem_addr),
         .mem_req          (mem_req),
         .mem_we           (mem_we),
@@ -108,6 +110,7 @@ module riscv_soc_7stg
         .rst_n            (rst_n),
         .if_pc            (if_pc),
         .if_req           (if_req),
+        .if_icache_consume(if_icache_consume),
         .if_instr         (if_instr),
         .if_icache_ready  (if_icache_ready),
         .if_icache_valid  (if_icache_valid),

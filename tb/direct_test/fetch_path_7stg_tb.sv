@@ -44,6 +44,8 @@ module fetch_path_7stg_tb;
     logic [DATA_WIDTH-1:0]   icache_instr;
     logic                    icache_ready;
     logic                    icache_valid;
+    logic                    icache_consume;
+    logic                    if_accept;
 
     //I-cache arbiter stub
     logic [DATA_WIDTH-1:0]   arb_rdata;
@@ -76,7 +78,8 @@ module fetch_path_7stg_tb;
     logic                    if2_id_flush;
 
     logic accept_instr;
-    assign accept_instr = if2_valid && icache_valid && !if2_id_flush && !stall;
+    assign if_accept    = if_req && icache_ready;
+    assign accept_instr = icache_consume && !if2_id_flush;
 
     fcu1 u_fcu1 (
         .clk             (clk),
@@ -98,8 +101,9 @@ module fetch_path_7stg_tb;
         .rst_n       (rst_n),
         .stall       (stall),
         .flush       (if1_if2_flush),
+        .if2_consume (icache_consume),
         .if1_pc_i    (if1_if2_pc),
-        .if1_valid_i (if_req),
+        .if1_valid_i (if_accept),
         .if2_pc_o    (if2_pc),
         .if2_valid_o (if2_valid)
     );
@@ -109,6 +113,7 @@ module fetch_path_7stg_tb;
         .rst_n        (rst_n),
         .pc           (if_pc),
         .if_req       (if_req),
+        .icache_consume(icache_consume),
         .instr        (icache_instr),
         .icache_ready (icache_ready),
         .icache_valid (icache_valid),
@@ -125,9 +130,10 @@ module fetch_path_7stg_tb;
         .clk              (clk),
         .rst_n            (rst_n),
         .if1_pc           (if_pc),
-        .if1_valid        (if_req),
+        .if1_valid        (if_accept),
         .stall            (stall),
         .flush            (if1_if2_flush),
+        .if2_consume      (icache_consume),
         .pred_taken       (pred_taken),
         .pred_target      (pred_target),
         .ex_update_en     (ex_update_en),
@@ -141,12 +147,12 @@ module fetch_path_7stg_tb;
         .rst_n               (rst_n),
         .instr_i             (icache_instr),
         .cache_valid         (icache_valid),
-        .cache_ready         (icache_ready),
         .if2_valid           (if2_valid),
         .pred_taken          (pred_taken),
         .pred_target         (pred_target),
         .ex_mispredict       (ex_mispredict),
         .cache_advance       (cache_advance),
+        .icache_consume      (icache_consume),
         .if2_redirect        (if2_redirect),
         .if2_redirect_pc     (if2_redirect_pc),
         .stall               (stall),
@@ -173,6 +179,8 @@ module fetch_path_7stg_tb;
 
     int pass_count;
     int fail_count;
+    logic saw_pc4_during_refill;
+    logic saw_pc8_during_refill;
 
     function automatic logic [DATA_WIDTH-1:0] rom_word(input logic [ADDR_WIDTH-1:0] addr);
         begin
@@ -202,10 +210,12 @@ module fetch_path_7stg_tb;
 
     arb_state_t              arb_state;
     logic [1:0]              beat_count;
-    logic [ADDR_WIDTH-1:0]   refill_base;
+    logic [ADDR_WIDTH-1:0]   refill_start;
+    logic [1:0]              beat_word_sel;
     logic [ADDR_WIDTH-1:0]   beat_addr;
 
-    assign beat_addr = {refill_base[ADDR_WIDTH-1:4], beat_count, 2'b00};
+    assign beat_word_sel = refill_start[3:2] + beat_count;
+    assign beat_addr     = {refill_start[ADDR_WIDTH-1:4], beat_word_sel, 2'b00};
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -215,7 +225,7 @@ module fetch_path_7stg_tb;
             arb_last    <= 1'b0;
             arb_rdata   <= '0;
             beat_count  <= '0;
-            refill_base <= '0;
+            refill_start <= '0;
         end else begin
             arb_grant <= 1'b0;
             arb_valid <= 1'b0;
@@ -225,7 +235,7 @@ module fetch_path_7stg_tb;
                 ARB_IDLE: begin
                     if (icache_req) begin
                         arb_grant   <= 1'b1;
-                        refill_base <= {icache_addr[ADDR_WIDTH-1:4], 4'b0000};
+                        refill_start <= icache_addr;
                         beat_count  <= 2'd0;
                         arb_state   <= ARB_DATA;
                     end
@@ -242,6 +252,18 @@ module fetch_path_7stg_tb;
                         beat_count <= beat_count + 2'd1;
                 end
             endcase
+        end
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            saw_pc4_during_refill <= 1'b0;
+            saw_pc8_during_refill <= 1'b0;
+        end else if (accept_instr && (arb_state == ARB_DATA)) begin
+            if (if2_pc == PC_4)
+                saw_pc4_during_refill <= 1'b1;
+            if (if2_pc == PC_8)
+                saw_pc8_during_refill <= 1'b1;
         end
     end
 
@@ -456,6 +478,17 @@ module fetch_path_7stg_tb;
         pass_count = 0;
         fail_count = 0;
         rst_n      = 1'b1;
+
+        //Test 0: nonzero critical word restarts before refill completion.
+        reset_dut();
+        pulse_ex_redirect(PC_4);
+        expect_fire(PC_4, rom_word(PC_4), "T0 critical word PC4");
+        expect_fire(PC_8, rom_word(PC_8), "T0 early restart PC8");
+        expect_fire(PC_C, rom_word(PC_C), "T0 early restart PC12");
+        if (saw_pc4_during_refill && saw_pc8_during_refill)
+            mark_pass("T0 responses occur during active refill");
+        else
+            mark_fail("T0 responses waited for refill completion");
 
         //Test 1: cold fetch refills line 0 and should retire PC0 once, then PC4/PC8/PC12.
         reset_dut();

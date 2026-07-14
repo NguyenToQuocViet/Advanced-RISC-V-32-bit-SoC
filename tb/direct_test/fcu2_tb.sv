@@ -33,7 +33,7 @@ module fcu2_tb;
     //i-cache response
     logic [DATA_WIDTH-1:0]  instr_i;
     logic                   cache_valid;
-    logic                   cache_ready;
+    logic                   icache_consume;
 
     //IF1/IF2 metadata
     logic                   if2_valid;
@@ -65,12 +65,12 @@ module fcu2_tb;
         .rst_n                  (rst_n),
         .instr_i                (instr_i),
         .cache_valid            (cache_valid),
-        .cache_ready            (cache_ready),
         .if2_valid              (if2_valid),
         .pred_taken             (pred_taken),
         .pred_target            (pred_target),
         .ex_mispredict          (ex_mispredict),
         .cache_advance          (cache_advance),
+        .icache_consume         (icache_consume),
         .if2_redirect           (if2_redirect),
         .if2_redirect_pc        (if2_redirect_pc),
         .stall                  (stall),
@@ -91,7 +91,6 @@ module fcu2_tb;
         begin
             instr_i       = 32'h0000_0013; //NOP
             cache_valid   = 1'b0;
-            cache_ready   = 1'b0;
             if2_valid     = 1'b0;
             pred_taken    = 1'b0;
             pred_target   = '0;
@@ -125,6 +124,7 @@ module fcu2_tb;
         input string                 desc;
         begin
             if ((cache_advance    === exp_cache_advance) &&
+                (icache_consume   === exp_cache_advance) &&
                 (if2_redirect     === exp_if2_redirect) &&
                 (if2_redirect_pc  === exp_if2_redirect_pc) &&
                 (if2_id_flush     === exp_if2_id_flush)) begin
@@ -135,6 +135,8 @@ module fcu2_tb;
                 $display("FAIL | %s", desc);
                 if (cache_advance !== exp_cache_advance)
                     $display("       cache_advance : got=%0b exp=%0b", cache_advance, exp_cache_advance);
+                if (icache_consume !== exp_cache_advance)
+                    $display("       icache_consume: got=%0b exp=%0b", icache_consume, exp_cache_advance);
                 if (if2_redirect !== exp_if2_redirect)
                     $display("       if2_redirect  : got=%0b exp=%0b", if2_redirect, exp_if2_redirect);
                 if (if2_redirect_pc !== exp_if2_redirect_pc)
@@ -182,7 +184,6 @@ module fcu2_tb;
         instr_i       = 32'h0050_0093;
 
         cache_valid   = 1'b1;
-        cache_ready   = 1'b1;
         if2_valid     = 1'b1;
 
         pred_taken    = 1'b0;
@@ -213,7 +214,6 @@ module fcu2_tb;
         //2. valid ready response, taken redirect
         instr_i       = 32'h0000_0063;
         cache_valid   = 1'b1;
-        cache_ready   = 1'b1;
         if2_valid     = 1'b1;
         pred_taken    = 1'b1;
         pred_target   = 32'h0000_0080;
@@ -240,7 +240,6 @@ module fcu2_tb;
         //3. if2_valid=0 blocks redirect and flushes IF2/ID
         instr_i       = 32'h0010_0113;
         cache_valid   = 1'b1;
-        cache_ready   = 1'b1;
         if2_valid     = 1'b0;
         pred_taken    = 1'b1;
         pred_target   = 32'h0000_00c0;
@@ -267,7 +266,6 @@ module fcu2_tb;
         //4. cache_valid=0 blocks redirect and flushes IF2/ID
         instr_i       = 32'h0020_0193;
         cache_valid   = 1'b0;
-        cache_ready   = 1'b0;
         if2_valid     = 1'b1;
         pred_taken    = 1'b1;
         pred_target   = 32'h0000_0100;
@@ -291,10 +289,9 @@ module fcu2_tb;
             "invalid cache response pipe"
         );
 
-        //5. stall blocks IF2 fire and redirect, cache_advance remains cache-side ready
+        //5. stall blocks consume and redirect
         instr_i       = 32'h0030_0213;
         cache_valid   = 1'b1;
-        cache_ready   = 1'b1;
         if2_valid     = 1'b1;
         pred_taken    = 1'b1;
         pred_target   = 32'h0000_0140;
@@ -304,7 +301,7 @@ module fcu2_tb;
         step();
 
         expect_ctrl(
-            1'b1,
+            1'b0,
             1'b0,
             32'h0000_0140,
             1'b0,
@@ -321,7 +318,6 @@ module fcu2_tb;
         //6. ex_mispredict overrides BTB redirect
         instr_i       = 32'h0040_0293;
         cache_valid   = 1'b1;
-        cache_ready   = 1'b1;
         if2_valid     = 1'b1;
         pred_taken    = 1'b1;
         pred_target   = 32'h0000_0180;
@@ -345,11 +341,10 @@ module fcu2_tb;
             "ex mispredict priority pipe"
         );
 
-        //7. CWF response captures once, then duplicate is blocked
+        //7. FCU2 consumes every aligned response token
         ex_mispredict = 1'b0;
         instr_i       = 32'h0050_0313;
         cache_valid   = 1'b1;
-        cache_ready   = 1'b0;
         if2_valid     = 1'b1;
         pred_taken    = 1'b0;
         pred_target   = 32'h0000_01c0;
@@ -375,22 +370,21 @@ module fcu2_tb;
         step();
 
         expect_ctrl(
-            1'b0,
+            1'b1,
             1'b0,
             32'h0000_01c0,
-            1'b1,
-            "cwf duplicate blocked ctrl"
+            1'b0,
+            "persistent token remains consumable ctrl"
         );
 
         expect_pipe(
             32'h0050_0313,
             1'b0,
             32'h0000_01c0,
-            "cwf duplicate blocked pipe"
+            "persistent token pipe"
         );
 
-        //8. cache_ready clears CWF consumed state
-        cache_ready = 1'b1;
+        //8. cache readiness is outside FCU2 response semantics
 
         step();
 
@@ -399,20 +393,19 @@ module fcu2_tb;
             1'b0,
             32'h0000_01c0,
             1'b0,
-            "cache ready clears cwf ctrl"
+            "response consume independent of cache ready ctrl"
         );
 
         expect_pipe(
             32'h0050_0313,
             1'b0,
             32'h0000_01c0,
-            "cache ready clears cwf pipe"
+            "response consume independent of cache ready pipe"
         );
 
-        //9. taken CWF must redirect once, then block duplicate redirect
+        //9. taken response redirects whenever a live token is presented
         instr_i       = 32'h0060_0363;
         cache_valid   = 1'b1;
-        cache_ready   = 1'b0;
         if2_valid     = 1'b1;
         pred_taken    = 1'b1;
         pred_target   = 32'h0000_0200;
@@ -439,21 +432,19 @@ module fcu2_tb;
         step();
 
         expect_ctrl(
-            1'b0,
-            1'b0,
-            32'h0000_0200,
             1'b1,
-            "taken cwf duplicate blocked ctrl"
+            1'b1,
+            32'h0000_0200,
+            1'b0,
+            "taken persistent token redirects ctrl"
         );
 
         expect_pipe(
             32'h0060_0363,
             1'b1,
             32'h0000_0200,
-            "taken cwf duplicate blocked pipe"
+            "taken persistent token pipe"
         );
-
-        cache_ready = 1'b1;
 
         step();
 
@@ -475,7 +466,6 @@ module fcu2_tb;
         //10. interleaved stress: normal, stall, mispredict, CWF, recover
         instr_i       = 32'h0060_0393;
         cache_valid   = 1'b1;
-        cache_ready   = 1'b1;
         if2_valid     = 1'b1;
         pred_taken    = 1'b0;
         pred_target   = 32'h0000_0200;
@@ -492,7 +482,7 @@ module fcu2_tb;
         stall       = 1'b1;
 
         step();
-        expect_ctrl(1'b1, 1'b0, 32'h0000_0240, 1'b0, "stress stall ctrl");
+        expect_ctrl(1'b0, 1'b0, 32'h0000_0240, 1'b0, "stress stall ctrl");
         expect_pipe (32'h0070_0413, 1'b1, 32'h0000_0240, "stress stall pipe");
 
         stall         = 1'b0;
@@ -505,7 +495,6 @@ module fcu2_tb;
 
         ex_mispredict = 1'b0;
         instr_i       = 32'h0080_0493;
-        cache_ready   = 1'b0;
         pred_taken    = 1'b0;
         pred_target   = 32'h0000_02c0;
 
@@ -514,10 +503,8 @@ module fcu2_tb;
         expect_pipe (32'h0080_0493, 1'b0, 32'h0000_02c0, "stress cwf first pipe");
 
         step();
-        expect_ctrl(1'b0, 1'b0, 32'h0000_02c0, 1'b1, "stress cwf duplicate ctrl");
-        expect_pipe (32'h0080_0493, 1'b0, 32'h0000_02c0, "stress cwf duplicate pipe");
-
-        cache_ready = 1'b1;
+        expect_ctrl(1'b1, 1'b0, 32'h0000_02c0, 1'b0, "stress persistent token ctrl");
+        expect_pipe (32'h0080_0493, 1'b0, 32'h0000_02c0, "stress persistent token pipe");
         pred_taken  = 1'b0;
         pred_target = 32'h0000_0300;
 

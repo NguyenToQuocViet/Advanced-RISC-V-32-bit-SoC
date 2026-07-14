@@ -37,6 +37,7 @@ module cache_subsystem_7stg_tb;
     logic [DATA_WIDTH-1:0]  if_instr;
     logic                   if_icache_ready;
     logic                   if_icache_valid;
+    logic                   if_icache_consume;
     logic                   flush_refill;
 
     //MEM side
@@ -88,6 +89,7 @@ module cache_subsystem_7stg_tb;
         .if_instr           (if_instr),
         .if_icache_ready    (if_icache_ready),
         .if_icache_valid    (if_icache_valid),
+        .if_icache_consume  (if_icache_consume),
         .flush_refill       (flush_refill),
         .mem_addr           (mem_addr),
         .mem_req            (mem_req),
@@ -181,6 +183,7 @@ module cache_subsystem_7stg_tb;
         begin
             if_pc        = '0;
             if_req       = 1'b0;
+            if_icache_consume = 1'b0;
             flush_refill = 1'b0;
             mem_addr     = '0;
             mem_req      = 1'b0;
@@ -286,6 +289,9 @@ module cache_subsystem_7stg_tb;
                 fail_count++;
             end
 
+            if_icache_consume = 1'b1;
+            step();
+            if_icache_consume = 1'b0;
             wait_if_ready({desc, " ready"});
         end
     endtask
@@ -466,6 +472,9 @@ module cache_subsystem_7stg_tb;
                 fail_count++;
             end
 
+            if_icache_consume = 1'b1;
+            step();
+            if_icache_consume = 1'b0;
             wait_if_ready({desc, " I ready"});
             wait_mem_ready({desc, " D ready"});
         end

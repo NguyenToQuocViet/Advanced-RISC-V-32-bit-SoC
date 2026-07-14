@@ -32,6 +32,7 @@ module cache_subsystem_7stg
     //if stage
     input  logic [ADDR_WIDTH-1:0]   if_pc,
     input  logic                    if_req,
+    input  logic                    if_icache_consume,
     output logic [DATA_WIDTH-1:0]   if_instr,
     output logic                    if_icache_ready,
     output logic                    if_icache_valid,
@@ -130,6 +131,7 @@ module cache_subsystem_7stg
         .rst_n          (rst_n),
         .pc             (if_pc),
         .if_req         (if_req),
+        .icache_consume (if_icache_consume),
         .instr          (if_instr),
         .icache_ready   (if_icache_ready),
         .icache_valid   (if_icache_valid),

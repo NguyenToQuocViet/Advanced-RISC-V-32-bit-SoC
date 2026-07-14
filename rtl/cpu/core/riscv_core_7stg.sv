@@ -36,6 +36,7 @@ module riscv_core_7stg
     input  logic [DATA_WIDTH-1:0]   if_instr,
     input  logic                    if_icache_ready,
     input  logic                    if_icache_valid,
+    output logic                    if_icache_consume,
 
     //mem interface
     output logic [ADDR_WIDTH-1:0]   mem_addr,
@@ -74,6 +75,9 @@ module riscv_core_7stg
     logic                   if2_id_pred_taken;
     logic [ADDR_WIDTH-1:0]  if2_id_pred_target;
     logic                   if2_id_flush;
+    logic                   if_accept;
+
+    assign if_accept = if_req && if_icache_ready;
 
     //id stage
     logic [ADDR_WIDTH-1:0]  id_pc;
@@ -215,8 +219,9 @@ module riscv_core_7stg
         .rst_n       (rst_n),
         .stall       (if1_if2_stall),
         .flush       (if1_if2_flush),
+        .if2_consume (if_icache_consume),
         .if1_pc_i    (if1_if2_pc),
-        .if1_valid_i (if_req),
+        .if1_valid_i (if_accept),
         .if2_pc_o    (if2_pc),
         .if2_valid_o (if2_valid)
     );
@@ -226,9 +231,10 @@ module riscv_core_7stg
         .clk              (clk),
         .rst_n            (rst_n),
         .if1_pc           (if_pc),
-        .if1_valid        (if_req),
+        .if1_valid        (if_accept),
         .stall            (if1_if2_stall),
         .flush            (if1_if2_flush),
+        .if2_consume      (if_icache_consume),
         .pred_taken       (if2_pred_taken),
         .pred_target      (if2_pred_target),
         .ex_update_en     (bru_update_en),
@@ -243,12 +249,12 @@ module riscv_core_7stg
         .rst_n               (rst_n),
         .instr_i             (if_instr),
         .cache_valid         (if_icache_valid),
-        .cache_ready         (if_icache_ready),
         .if2_valid           (if2_valid),
         .pred_taken          (if2_pred_taken),
         .pred_target         (if2_pred_target),
         .ex_mispredict       (mispredict_r),
         .cache_advance       (cache_advance),
+        .icache_consume      (if_icache_consume),
         .if2_redirect        (if2_redirect),
         .if2_redirect_pc     (if2_redirect_pc),
         .stall               (if2_id_stall),

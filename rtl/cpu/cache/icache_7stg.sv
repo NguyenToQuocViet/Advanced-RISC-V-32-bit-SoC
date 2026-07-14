@@ -17,11 +17,13 @@
 // Description  : 4KB direct-mapped I-Cache for 7-stage pipeline.
 //                IF1 launches synchronous SRAM read.
 //                IF2 receives SRAM dout, performs tag compare, and returns instr.
-//                Refill/CWF behavior is preserved from icache v1.1.
+//                Refill buffer supports same-line early restart.
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-05-07
-// Version      : 2.4
+// Version      : 2.5
+// Changes v2.5 : use lookup metadata as one-entry request slot.
+//                Serve any available word from the active refill buffer.
 // Changes v2.4 : keep flush_refill out of same-cycle response-valid path.
 // Changes v2.3 : REFILL_DONE deasserts ready while 1RW SRAM commits refill line.
 // Changes v2.2 : SRAM-based tag/data storage using sram_1rw wrappers.
@@ -40,6 +42,7 @@ module icache_7stg
     //IF - i-cache interface
     input logic [ADDR_WIDTH-1:0] pc,
     input logic if_req,
+    input logic icache_consume,
 
     output logic [DATA_WIDTH-1:0] instr,
     output logic icache_ready,
@@ -73,6 +76,7 @@ module icache_7stg
     logic [IC_IDX_BITS-1:0]     lookup_idx_q;
     logic [IC_TAG_BITS-1:0]     lookup_tag_q;
     logic                       lookup_valid_q;
+    logic                       lookup_accept;
 
     //SRAM storage
     logic                       tag_csb;
@@ -134,9 +138,13 @@ module icache_7stg
     logic [WORD_SEL_BITS-1:0]   rf_word_sel;
 
     logic rf_buffer_hit;
-    assign rf_buffer_hit = rf_valid[lookup_word_sel_q] &&
+    assign rf_buffer_hit = lookup_valid_q && rf_valid[lookup_word_sel_q] &&
                            (rf_idx == lookup_idx_q) &&
                            (rf_tag == lookup_tag_q);
+
+    //one-entry request slot
+    assign icache_ready  = !lookup_valid_q || icache_consume;
+    assign lookup_accept = if_req && icache_ready;
 
     //fsm
     typedef enum logic [2:0] {
@@ -160,19 +168,20 @@ module icache_7stg
 
         case (state)
             IDLE: begin
-                if (if_req)
+                if (lookup_valid_q || lookup_accept)
                     next_state = LOOKUP;
             end
 
             LOOKUP: begin
-                if (cache_hit)
-                    next_state = if_req ? LOOKUP : IDLE;
-                else if (rf_buffer_hit && !rf_abandon)
-                    next_state = IDLE;
-                else if (lookup_valid_q)
+                if (lookup_valid_q &&
+                    (cache_hit || (rf_buffer_hit && !rf_abandon))) begin
+                    if (icache_consume)
+                        next_state = lookup_accept ? LOOKUP : IDLE;
+                end else if (lookup_valid_q) begin
                     next_state = REFILL_REQ;
-                else
-                    next_state = IDLE;
+                end else begin
+                    next_state = lookup_accept ? LOOKUP : IDLE;
+                end
             end
 
             REFILL_REQ: begin
@@ -211,25 +220,21 @@ module icache_7stg
         end else begin
             state <= next_state;
 
-            case (state)
-                IDLE: begin
-                    lookup_valid_q <= if_req;
-                    if (if_req) begin
-                        lookup_tag_q      <= pc_tag;
-                        lookup_idx_q      <= pc_idx;
-                        lookup_word_sel_q <= pc_word_sel;
-                    end
-                end
+            if (flush_refill) begin
+                lookup_valid_q <= 1'b0;
+            end else if (lookup_accept) begin
+                lookup_valid_q    <= 1'b1;
+                lookup_tag_q      <= pc_tag;
+                lookup_idx_q      <= pc_idx;
+                lookup_word_sel_q <= pc_word_sel;
+            end else if (icache_consume) begin
+                lookup_valid_q <= 1'b0;
+            end
 
+            case (state)
                 LOOKUP: begin
-                    if (cache_hit) begin
-                        lookup_valid_q <= if_req;
-                        if (if_req) begin
-                            lookup_tag_q      <= pc_tag;
-                            lookup_idx_q      <= pc_idx;
-                            lookup_word_sel_q <= pc_word_sel;
-                        end
-                    end else if (lookup_valid_q && !(rf_buffer_hit && !rf_abandon)) begin
+                    if (lookup_valid_q && !cache_hit &&
+                        !(rf_buffer_hit && !rf_abandon)) begin
                         rf_valid <= '0;
                     end
                 end
@@ -242,8 +247,8 @@ module icache_7stg
                 REFILL_DONE: begin
                     if (!refill_squash)
                         cache_valid[rf_idx] <= 1'b1;
-                    rf_valid       <= '0;
-                    lookup_valid_q <= 1'b0;
+                    else
+                        rf_valid <= '0;
                 end
             endcase
         end
@@ -256,7 +261,7 @@ module icache_7stg
                 if (lookup_valid_q && !cache_hit && !(rf_buffer_hit && !rf_abandon)) begin
                     rf_tag      <= lookup_tag_q;
                     rf_idx      <= lookup_idx_q;
-                    rf_word_sel <= '0;
+                    rf_word_sel <= lookup_word_sel_q;
                 end
             end
 
@@ -289,19 +294,19 @@ module icache_7stg
 
         case (state)
             IDLE: begin
-                if (if_req) begin
+                if (lookup_accept || lookup_valid_q) begin
                     tag_csb   = 1'b0;
                     tag_web   = 1'b1;
-                    tag_addr  = pc_idx;
+                    tag_addr  = lookup_accept ? pc_idx : lookup_idx_q;
 
                     data_csb  = 1'b0;
                     data_web  = 1'b1;
-                    data_addr = pc_idx;
+                    data_addr = lookup_accept ? pc_idx : lookup_idx_q;
                 end
             end
 
             LOOKUP: begin
-                if (cache_hit && if_req) begin
+                if (lookup_accept) begin
                     tag_csb   = 1'b0;
                     tag_web   = 1'b1;
                     tag_addr  = pc_idx;
@@ -327,49 +332,18 @@ module icache_7stg
         endcase
     end
 
-    //FSM: output logic
+    //response mux
     always_comb begin
-        instr           = '0;
-        icache_valid    = 1'b0;
-        icache_ready    = 1'b0;
+        instr        = '0;
+        icache_valid = 1'b0;
 
-        case (state)
-            IDLE: begin
-                icache_ready = 1'b1;
-            end
-
-            LOOKUP: begin
-                if (cache_hit) begin
-                    instr        = hit_data;
-                    icache_valid = 1'b1;
-                    //LOOKUP accepts next request only on clean hit.
-                    icache_ready = 1'b1;
-                end else if (rf_buffer_hit && !rf_abandon) begin
-                    instr        = rf_buffer[lookup_word_sel_q];
-                    icache_valid = 1'b1;
-                    icache_ready = 1'b0;
-                end
-            end
-
-            REFILL_DATA: begin
-                if (rf_buffer_hit && !rf_abandon) begin
-                    instr        = rf_buffer[lookup_word_sel_q];
-                    icache_valid = 1'b1;
-                end
-                icache_ready = 1'b0;
-            end
-
-            REFILL_DONE: begin
-                if (!rf_abandon &&
-                    (rf_tag == lookup_tag_q) &&
-                    (rf_idx == lookup_idx_q) &&
-                    rf_valid[lookup_word_sel_q]) begin
-                    instr        = rf_buffer[lookup_word_sel_q];
-                    icache_valid = 1'b1;
-                end
-                icache_ready = 1'b0;
-            end
-        endcase
+        if (rf_buffer_hit && !rf_abandon) begin
+            instr        = rf_buffer[lookup_word_sel_q];
+            icache_valid = 1'b1;
+        end else if ((state == LOOKUP) && cache_hit) begin
+            instr        = hit_data;
+            icache_valid = 1'b1;
+        end
     end
 
     //Bus Arbiter

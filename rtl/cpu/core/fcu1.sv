@@ -84,7 +84,8 @@ module fcu1
 
     //Launch next request while consuming current response
     assign if_pc        = launch_pc;
-    assign if_req       = !stall && !ex_mispredict;
+    //redirect cycle carries no sequential request
+    assign if_req       = !stall && !ex_mispredict && !if2_redirect;
 
     //output to IF1/IF2 pipeline
     assign if1_if2_pc          = launch_pc;
