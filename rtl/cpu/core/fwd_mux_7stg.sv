@@ -20,8 +20,9 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-04-30
-// Version      : 2.0
+// Version      : 2.1
 // Changes      : 7-stage: MEM1 + MEM2 separate sources, each with wb_sel check.
+// Changes v2.1 : Forward load data, not load address, from MEM2.
 // -----------------------------------------------------------------------------
 
 module fwd_mux_7stg
@@ -43,6 +44,7 @@ module fwd_mux_7stg
     //MEM2 source (mem1_mem2_pipeline)
     input  logic [1:0]              mem2_wb_sel,
     input  logic [DATA_WIDTH-1:0]   mem2_alu_result,
+    input  logic [DATA_WIDTH-1:0]   mem2_rdata,
     input  logic [ADDR_WIDTH-1:0]   mem2_pc,
 
     //WB-stage source (already muxed by wb module)
@@ -56,9 +58,10 @@ module fwd_mux_7stg
     logic [DATA_WIDTH-1:0] mem1_fwd_val;
     assign mem1_fwd_val = (mem1_wb_sel == WB_PC4) ? (mem1_pc + 32'd4) : mem1_alu_result;
 
-    //MEM2 forward value: same logic
+    //MEM2 forward value: load data, pc+4, or ALU result
     logic [DATA_WIDTH-1:0] mem2_fwd_val;
-    assign mem2_fwd_val = (mem2_wb_sel == WB_PC4) ? (mem2_pc + 32'd4) : mem2_alu_result;
+    assign mem2_fwd_val = (mem2_wb_sel == WB_PC4) ? (mem2_pc + 32'd4) :
+                          (mem2_wb_sel == WB_MEM) ? mem2_rdata : mem2_alu_result;
 
     //4-to-1 mux: MEM1 > MEM2 > WB > RF (FU enforces priority)
     assign fw_src_a = (forward_a == 2'b11) ? mem1_fwd_val :

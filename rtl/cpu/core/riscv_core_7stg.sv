@@ -386,6 +386,7 @@ module riscv_core_7stg
         .mem1_pc         (mem1_pc),
         .mem2_wb_sel     (mem2_wb_sel),
         .mem2_alu_result (mem2_alu_result),
+        .mem2_rdata      (mem2_rdata_ext),
         .mem2_pc         (mem2_pc),
         .wb_wdata        (wb_wdata),
         .fw_src_a        (fw_src_a),
