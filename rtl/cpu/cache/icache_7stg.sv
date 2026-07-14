@@ -21,7 +21,8 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-05-07
-// Version      : 2.5
+// Version      : 2.6
+// Changes v2.6 : keep speculative refill and commit line after lookup flush.
 // Changes v2.5 : use lookup metadata as one-entry request slot.
 //                Serve any available word from the active refill buffer.
 // Changes v2.4 : keep flush_refill out of same-cycle response-valid path.
@@ -157,11 +158,6 @@ module icache_7stg
 
     state_t state, next_state;
 
-    //refill abandon: sticky set when redirect arrives mid-refill
-    logic rf_abandon;
-    logic refill_squash;
-    assign refill_squash = rf_abandon || flush_refill;
-
     //FSM: next state logic
     always_comb begin
         next_state = state;
@@ -173,8 +169,7 @@ module icache_7stg
             end
 
             LOOKUP: begin
-                if (lookup_valid_q &&
-                    (cache_hit || (rf_buffer_hit && !rf_abandon))) begin
+                if (lookup_valid_q && (cache_hit || rf_buffer_hit)) begin
                     if (icache_consume)
                         next_state = lookup_accept ? LOOKUP : IDLE;
                 end else if (lookup_valid_q) begin
@@ -200,16 +195,6 @@ module icache_7stg
         endcase
     end
 
-    //refill abandon register
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            rf_abandon <= 1'b0;
-        else if (state == IDLE)
-            rf_abandon <= 1'b0;
-        else if (flush_refill)
-            rf_abandon <= 1'b1;
-    end
-
     //FSM: control registers
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -233,8 +218,7 @@ module icache_7stg
 
             case (state)
                 LOOKUP: begin
-                    if (lookup_valid_q && !cache_hit &&
-                        !(rf_buffer_hit && !rf_abandon)) begin
+                    if (lookup_valid_q && !cache_hit && !rf_buffer_hit) begin
                         rf_valid <= '0;
                     end
                 end
@@ -245,10 +229,7 @@ module icache_7stg
                 end
 
                 REFILL_DONE: begin
-                    if (!refill_squash)
-                        cache_valid[rf_idx] <= 1'b1;
-                    else
-                        rf_valid <= '0;
+                    cache_valid[rf_idx] <= 1'b1;
                 end
             endcase
         end
@@ -258,7 +239,7 @@ module icache_7stg
     always_ff @(posedge clk) begin
         case (state)
             LOOKUP: begin
-                if (lookup_valid_q && !cache_hit && !(rf_buffer_hit && !rf_abandon)) begin
+                if (lookup_valid_q && !cache_hit && !rf_buffer_hit) begin
                     rf_tag      <= lookup_tag_q;
                     rf_idx      <= lookup_idx_q;
                     rf_word_sel <= lookup_word_sel_q;
@@ -318,16 +299,14 @@ module icache_7stg
             end
 
             REFILL_DONE: begin
-                if (!rf_abandon) begin
-                    tag_csb   = 1'b0;
-                    tag_web   = 1'b0;
-                    tag_addr  = rf_idx;
-                    tag_din   = rf_tag;
+                tag_csb   = 1'b0;
+                tag_web   = 1'b0;
+                tag_addr  = rf_idx;
+                tag_din   = rf_tag;
 
-                    data_csb  = 1'b0;
-                    data_web  = 1'b0;
-                    data_addr = rf_idx;
-                end
+                data_csb  = 1'b0;
+                data_web  = 1'b0;
+                data_addr = rf_idx;
             end
         endcase
     end
@@ -337,7 +316,7 @@ module icache_7stg
         instr        = '0;
         icache_valid = 1'b0;
 
-        if (rf_buffer_hit && !rf_abandon) begin
+        if (rf_buffer_hit) begin
             instr        = rf_buffer[lookup_word_sel_q];
             icache_valid = 1'b1;
         end else if ((state == LOOKUP) && cache_hit) begin

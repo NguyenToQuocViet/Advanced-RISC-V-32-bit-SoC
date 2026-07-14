@@ -176,9 +176,13 @@ module fetch_path_7stg_tb;
     localparam logic [ADDR_WIDTH-1:0] PC_80  = 32'h0000_0080;
     localparam logic [ADDR_WIDTH-1:0] PC_84  = 32'h0000_0084;
     localparam logic [ADDR_WIDTH-1:0] PC_88  = 32'h0000_0088;
+    localparam logic [ADDR_WIDTH-1:0] PC_C0  = 32'h0000_00c0;
+    localparam logic [ADDR_WIDTH-1:0] PC_100 = 32'h0000_0100;
 
     int pass_count;
     int fail_count;
+    int refill_count;
+    int refills_before_revisit;
     logic saw_pc4_during_refill;
     logic saw_pc8_during_refill;
 
@@ -265,6 +269,13 @@ module fetch_path_7stg_tb;
             if (if2_pc == PC_8)
                 saw_pc8_during_refill <= 1'b1;
         end
+    end
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            refill_count <= 0;
+        else if (icache_req && (arb_state == ARB_IDLE))
+            refill_count <= refill_count + 1;
     end
 
     task automatic drive_idle;
@@ -524,6 +535,19 @@ module fetch_path_7stg_tb;
         //Test 5: redirected target line continues sequentially after refill.
         expect_fire(PC_84, rom_word(PC_84), "T5 target line PC84 fetched");
         expect_fire(PC_88, rom_word(PC_88), "T5 target line PC88 fetched");
+
+        //Test 6: wrong-path refill still commits as a speculative cache fill.
+        pulse_ex_redirect(PC_C0);
+        expect_ex_override_on_pc(PC_C0, PC_100, "T6 redirect during active refill");
+        expect_fire(PC_100, rom_word(PC_100), "T6 correct target fetched");
+
+        refills_before_revisit = refill_count;
+        pulse_ex_redirect(PC_C0);
+        expect_fire(PC_C0, rom_word(PC_C0), "T6 speculative line revisited");
+        if (refill_count == refills_before_revisit)
+            mark_pass("T6 speculative refill committed to cache");
+        else
+            mark_fail("T6 speculative line issued a second refill");
 
         $display("--------------------------------------------------");
         $display("FETCH_PATH_7STG_TB SUMMARY: PASS=%0d FAIL=%0d", pass_count, fail_count);
