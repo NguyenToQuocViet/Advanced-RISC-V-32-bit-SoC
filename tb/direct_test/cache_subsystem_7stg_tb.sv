@@ -500,6 +500,7 @@ module cache_subsystem_7stg_tb;
 
         u_mem_model.write_word(32'h0000_3000, 32'h0000_0000);
         u_mem_model.write_word(32'h0000_3004, 32'h0000_0000);
+        u_mem_model.write_word(32'h0000_3010, 32'h1122_3344);
 
         u_mem_model.write_word(32'h0000_4000, 32'h0400_0013);
         u_mem_model.write_word(32'h0000_4004, 32'h0400_0093);
@@ -521,6 +522,10 @@ module cache_subsystem_7stg_tb;
         //4. Store miss pushes write buffer; immediate load should see forwarded data.
         d_write(32'h0000_3000, 32'hAABB_CCDD, 4'b1111, "T7 D-cache store miss");
         d_read (32'h0000_3000, 32'hAABB_CCDD, "T8 Store-to-load forwarding");
+
+        //partial forwarding must survive write-buffer drain during refill
+        d_write(32'h0000_3010, 32'h0000_AA00, 4'b0010, "T8a Partial store miss");
+        d_read (32'h0000_3010, 32'h1122_AA44, "T8b Partial forward snapshot");
 
         //5. Fence drains write buffer to AXI memory.
         fence_wait("T9 Fence drains write buffer");

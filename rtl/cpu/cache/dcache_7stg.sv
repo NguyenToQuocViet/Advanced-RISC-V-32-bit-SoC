@@ -21,10 +21,11 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-06-16
-// Version      : 2.1
+// Version      : 2.2
 // Changes v2.0 : Restore 5-stage external interface; latch lookup metadata
 //                inside cache for SRAM response alignment.
 // Changes v2.1 : Uncacheable refill still returns data; only cache allocate is blocked.
+// Changes v2.2 : Snapshot partial forwarding bytes for the full refill lifetime.
 // -----------------------------------------------------------------------------
 
 module dcache_7stg
@@ -256,6 +257,8 @@ module dcache_7stg
     logic [DC_IDX_BITS-1:0]     rf_idx;
     logic [WORD_SEL_BITS-1:0]   rf_word_sel;
     logic                       rf_uncacheable;
+    logic [DATA_WIDTH-1:0]      rf_fwd_data;
+    logic [STRB_WIDTH-1:0]      rf_fwd_strb;
 
     logic                       rf_buffer_hit;
     logic [DATA_WIDTH-1:0]      rf_merged_rdata;
@@ -269,8 +272,8 @@ module dcache_7stg
 
     always_comb begin
         for (int b = 0; b < STRB_WIDTH; b++) begin
-            if (fwd_hit_eff && fwd_strb[b])
-                rf_merged_rdata[b*8 +: 8] = fwd_data[b*8 +: 8];
+            if (rf_fwd_strb[b])
+                rf_merged_rdata[b*8 +: 8] = rf_fwd_data[b*8 +: 8];
             else
                 rf_merged_rdata[b*8 +: 8] = rf_buffer[lookup_word_sel_q][b*8 +: 8];
         end
@@ -445,6 +448,8 @@ module dcache_7stg
                     rf_idx         <= lookup_idx_q;
                     rf_word_sel    <= lookup_word_sel_q;
                     rf_uncacheable <= lookup_uncacheable_q;
+                    rf_fwd_data    <= fwd_data;
+                    rf_fwd_strb    <= fwd_hit_eff ? fwd_strb : '0;
                 end else if (store_hit_update) begin
                     store_addr_q  <= lookup_word_base_q;
                     store_wdata_q <= lookup_wdata_q;
