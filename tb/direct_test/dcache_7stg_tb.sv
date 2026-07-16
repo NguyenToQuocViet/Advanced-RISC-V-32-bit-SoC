@@ -363,8 +363,10 @@ module dcache_7stg_tb;
             arb_last  = 1'b0;
             arb_rdata = '0;
 
-            //leave REFILL_DONE and commit SRAM line
-            step();
+            //wait for both 64-bit commit writes
+            do begin
+                step();
+            end while (!dcache_ready);
             expect_ctrl(1'b0, 1'b1, {desc, " refill committed"});
         end
     endtask
@@ -449,6 +451,17 @@ module dcache_7stg_tb;
         expect_data(32'hAAA0_0003, "T2 hit data word3");
         step();
 
+        //verify all word positions across both 64-bit pairs
+        launch_load(ADDR_A0, "T2b load hit A0");
+        expect_data(32'hAAA0_0000, "T2b hit data word0");
+        step();
+        launch_load(ADDR_A1, "T2c load hit A1");
+        expect_data(32'hAAA0_0001, "T2c hit data word1");
+        step();
+        launch_load(ADDR_A2, "T2d load hit A2");
+        expect_data(32'hAAA0_0002, "T2d hit data word2");
+        step();
+
         //3. store miss: push write buffer, do not allocate cache line
         launch_store(ADDR_B0, 32'hBEEF_1234, 4'b1111, "T3 store miss B0");
         expect_ctrl(1'b1, 1'b1, "T3 store miss accepted");
@@ -466,6 +479,14 @@ module dcache_7stg_tb;
                          32'hBBB0_0000,
                          "T3b refill line B");
 
+        //same set, second way, both word pairs
+        launch_load(ADDR_B0, "T3c load way1 pair0");
+        expect_data(32'hBBB0_0000, "T3c way1 word0");
+        step();
+        launch_load(ADDR_B0 + 8, "T3d load way1 pair1");
+        expect_data(32'hBBB0_0002, "T3d way1 word2");
+        step();
+
         //4. store hit: update cache SRAM, then push write buffer in STORE_DONE
         launch_store(ADDR_A1, 32'h1234_5678, 4'b0011, "T4 store hit A1");
         expect_ctrl(1'b0, 1'b0, "T4 store hit update cycle");
@@ -478,6 +499,36 @@ module dcache_7stg_tb;
         launch_load(ADDR_A1, "T4b load updated A1");
         expect_ctrl(1'b1, 1'b1, "T4b updated hit ctrl");
         expect_data(32'hAAA0_5678, "T4b updated hit data");
+        step();
+
+        launch_load(ADDR_A0, "T4c pair neighbor preserved");
+        expect_data(32'hAAA0_0000, "T4c A0 unchanged after A1 SH");
+        step();
+
+        //upper pair byte store and neighbor preservation
+        launch_store(ADDR_A2, 32'h12AB_5678, 4'b0100, "T4d store hit A2 byte");
+        expect_ctrl(1'b0, 1'b0, "T4d store hit update cycle");
+        step();
+        expect_wb(1'b1, word_base(ADDR_A2), 32'h12AB_5678, 4'b0100, "T4d store hit wb push");
+        step();
+        launch_load(ADDR_A2, "T4e load byte-updated A2");
+        expect_data(32'hAAAB_0002, "T4e A2 byte update");
+        step();
+        launch_load(ADDR_A3, "T4f upper pair neighbor preserved");
+        expect_data(32'hAAA0_0003, "T4f A3 unchanged after A2 SB");
+        step();
+
+        //full-word store on second way
+        launch_store(ADDR_B0, 32'hDEAD_BEEF, 4'b1111, "T4g store hit B0 word");
+        expect_ctrl(1'b0, 1'b0, "T4g store hit update cycle");
+        step();
+        expect_wb(1'b1, word_base(ADDR_B0), 32'hDEAD_BEEF, 4'b1111, "T4g store hit wb push");
+        step();
+        launch_load(ADDR_B0, "T4h load word-updated B0");
+        expect_data(32'hDEAD_BEEF, "T4h B0 word update");
+        step();
+        launch_load(ADDR_B0 + 4, "T4i lower pair neighbor preserved");
+        expect_data(32'hBBB0_0001, "T4i B1 unchanged after B0 SW");
         step();
 
         //5. partial write-buffer forwarding merges with cache-hit word

@@ -94,8 +94,8 @@ module mem_path_7stg_tb;
     logic                     dcache_req;
     logic [ADDR_WIDTH-1:0]    dcache_addr;
 
-    //Stall after metadata reaches MEM2 and response is not ready yet.
-    assign mem_pipe_stall = mem2_req && !load_valid;
+    //match core MEM1 launch wait and MEM2 response wait
+    assign mem_pipe_stall = (mem1_req && !dc_ready) || (mem2_req && !load_valid);
 
     lsu1 u_lsu1 (
         .mem_req      (mem1_req),
@@ -346,6 +346,8 @@ module mem_path_7stg_tb;
             mem1_we    = t_we;
             mem1_size  = t_size;
             mem1_wdata = t_wdata;
+            while (!dc_ready)
+                step();
             step();
             mem1_req   = 1'b0;
             mem1_we    = 1'b0;

@@ -36,3 +36,33 @@
 - Document the timing contract directly in RTL: request accepted in cycle N, SRAM tag/data resolved in cycle N+1.
 - Rename generic `lookup_valid_q` if appropriate so its role as IF2 request validity is immediately visible.
 - Refactor only after baseline integration and regression; this is a readability change, not functional priority.
+
+
+## D-Cache ASAP7 data-array checkpoint (2026-07-16)
+
+### Decision
+
+- Scope hiện tại chỉ migrate D-Cache data array; tag array vẫn dùng `sram_1rw` để tách riêng quyết định mapping tag.
+- Mỗi way dùng một `srambank_64x4x64_6t122`: tổng cộng hai macro 256x64-bit cho D-Cache 4 KiB, 2-way.
+- SRAM address là `{set[6:0], word_sel[1]}`; `word_sel[0]` chọn word 32-bit thấp hoặc cao trong cặp 64-bit.
+- `sram_256x64_1rw` giữ một contract 1RW, synchronous-read, full-word-write; backend generic dùng cho FPGA, `ASAP7_SRAM` instantiate macro thật.
+
+### Timing and control
+
+- Load hit vẫn dùng một SRAM read cycle.
+- Store hit đọc cặp 64-bit, merge byte theo `wstrb`, rồi full-write lại cặp; không còn data `wmask` vật lý.
+- Refill vẫn nhận bốn beat 32-bit, nhưng commit thành hai write 64-bit qua `REFILL_COMMIT_LO` và `REFILL_COMMIT_HI`.
+- Valid/LRU chỉ cập nhật sau commit cặp cao; uncacheable refill không commit; external D-Cache ready/valid contract không đổi.
+
+### Collateral and verification
+
+- Đã thêm wrapper cùng `.v`, `.lib`, `.lef` và BSD `LICENSE` của macro; chưa copy GDS vì bundle chỉ có GDS bank tổng hợp.
+- D-Cache directed: generic `48 PASS | 0 FAIL`; ASAP7 macro `48 PASS | 0 FAIL`.
+- MEM-path integration: `16 PASS | 0 FAIL`; TB được sửa để giữ MEM1 request đến khi `dcache_ready` đúng theo HDU contract.
+- SoC RV32UI: generic và ASAP7 macro đều `38 PASS | 0 FAIL | 0 TIMEOUT`.
+- Vivado 2025.2 infer đúng hai data RAM 256x64, mỗi way một `RAMB36E2`; đây là synthesis evidence, chưa phải timing closure.
+
+### Remaining
+
+- Tag SRAM còn packed 42-bit và dùng `tag_wmask`; migrate tag sang ASAP7 là quyết định kế tiếp, độc lập với data array.
+- Cách đóng gói third-party collateral/GDS khi push GitHub vẫn chưa chốt.

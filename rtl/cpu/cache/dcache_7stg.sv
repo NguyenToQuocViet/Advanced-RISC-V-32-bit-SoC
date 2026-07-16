@@ -70,7 +70,8 @@ module dcache_7stg
     output logic                    dcache_req,
     output logic [ADDR_WIDTH-1:0]   dcache_addr
 );
-    localparam LINE_WIDTH = DATA_WIDTH * WORDS_PER_LINE;
+    localparam PAIR_WIDTH      = DATA_WIDTH * 2;
+    localparam PAIR_ADDR_WIDTH = DC_IDX_BITS + 1;
 
     //address decode - live MEM1 request
     logic [WORD_SEL_BITS-1:0] addr_word_sel;
@@ -104,19 +105,17 @@ module dcache_7stg
     logic [DC_TAG_BITS*DC_WAYS-1:0] tag_dout;
     logic [DC_WAYS-1:0]             tag_wmask;
 
-    logic                           data0_csb;
-    logic                           data0_web;
-    logic [DC_IDX_BITS-1:0]         data0_addr;
-    logic [LINE_WIDTH-1:0]          data0_din;
-    logic [LINE_WIDTH-1:0]          data0_dout;
-    logic [WORDS_PER_LINE-1:0]      data0_wmask;
+    logic                           data0_en;
+    logic                           data0_we;
+    logic [PAIR_ADDR_WIDTH-1:0]     data0_addr;
+    logic [PAIR_WIDTH-1:0]          data0_din;
+    logic [PAIR_WIDTH-1:0]          data0_dout;
 
-    logic                           data1_csb;
-    logic                           data1_web;
-    logic [DC_IDX_BITS-1:0]         data1_addr;
-    logic [LINE_WIDTH-1:0]          data1_din;
-    logic [LINE_WIDTH-1:0]          data1_dout;
-    logic [WORDS_PER_LINE-1:0]      data1_wmask;
+    logic                           data1_en;
+    logic                           data1_we;
+    logic [PAIR_ADDR_WIDTH-1:0]     data1_addr;
+    logic [PAIR_WIDTH-1:0]          data1_din;
+    logic [PAIR_WIDTH-1:0]          data1_dout;
 
     logic [DC_SETS-1:0][DC_WAYS-1:0] cache_valid;
     logic [DC_SETS-1:0]              lru;
@@ -136,34 +135,22 @@ module dcache_7stg
         .dout  (tag_dout)
     );
 
-    sram_1rw #(
-        .ADDR_W  (DC_IDX_BITS),
-        .DATA_W  (LINE_WIDTH),
-        .DEPTH   (DC_SETS),
-        .WMASK_W (WORDS_PER_LINE)
-    ) data_way0_sram (
+    sram_256x64_1rw data_way0_sram (
         .clk   (clk),
-        .csb   (data0_csb),
-        .web   (data0_web),
-        .wmask (data0_wmask),
+        .en    (data0_en),
+        .we    (data0_we),
         .addr  (data0_addr),
-        .din   (data0_din),
-        .dout  (data0_dout)
+        .wdata (data0_din),
+        .rdata (data0_dout)
     );
 
-    sram_1rw #(
-        .ADDR_W  (DC_IDX_BITS),
-        .DATA_W  (LINE_WIDTH),
-        .DEPTH   (DC_SETS),
-        .WMASK_W (WORDS_PER_LINE)
-    ) data_way1_sram (
+    sram_256x64_1rw data_way1_sram (
         .clk   (clk),
-        .csb   (data1_csb),
-        .web   (data1_web),
-        .wmask (data1_wmask),
+        .en    (data1_en),
+        .we    (data1_we),
         .addr  (data1_addr),
-        .din   (data1_din),
-        .dout  (data1_dout)
+        .wdata (data1_din),
+        .rdata (data1_dout)
     );
 
     //lookup result
@@ -184,8 +171,8 @@ module dcache_7stg
     assign cache_hit  = |way_hit && !lookup_uncacheable_q;
     assign hit_way    = way_hit[1];
 
-    assign data0_word  = data0_dout[lookup_word_sel_q*DATA_WIDTH +: DATA_WIDTH];
-    assign data1_word  = data1_dout[lookup_word_sel_q*DATA_WIDTH +: DATA_WIDTH];
+    assign data0_word  = data0_dout[lookup_word_sel_q[0]*DATA_WIDTH +: DATA_WIDTH];
+    assign data1_word  = data1_dout[lookup_word_sel_q[0]*DATA_WIDTH +: DATA_WIDTH];
     assign cache_rdata = hit_way ? data1_word : data0_word;
 
     //write-buffer forwarding
@@ -228,26 +215,20 @@ module dcache_7stg
     assign lookup_done      = load_hit || load_fwd_full || store_miss_accept;
 
     //store hit update
-    logic [LINE_WIDTH-1:0]     hit_line;
-    logic [LINE_WIDTH-1:0]     store_line_next;
-    logic [WORDS_PER_LINE-1:0] store_wmask_next;
+    logic [PAIR_WIDTH-1:0]     hit_pair;
+    logic [PAIR_WIDTH-1:0]     store_pair_next;
     logic [ADDR_WIDTH-1:0]     store_addr_q;
     logic [DATA_WIDTH-1:0]     store_wdata_q;
     logic [STRB_WIDTH-1:0]     store_wstrb_q;
 
-    assign hit_line = hit_way ? data1_dout : data0_dout;
+    assign hit_pair = hit_way ? data1_dout : data0_dout;
 
     always_comb begin
-        store_line_next = hit_line;
+        store_pair_next = hit_pair;
         for (int b = 0; b < STRB_WIDTH; b++) begin
             if (lookup_wstrb_q[b])
-                store_line_next[lookup_word_sel_q*DATA_WIDTH + b*8 +: 8] = lookup_wdata_q[b*8 +: 8];
+                store_pair_next[lookup_word_sel_q[0]*DATA_WIDTH + b*8 +: 8] = lookup_wdata_q[b*8 +: 8];
         end
-    end
-
-    always_comb begin
-        store_wmask_next = '0;
-        store_wmask_next[lookup_word_sel_q] = 1'b1;
     end
 
     //refill buffer
@@ -292,13 +273,11 @@ module dcache_7stg
     end
 
     //refill write data packing
-    logic [LINE_WIDTH-1:0] refill_line;
+    logic [PAIR_WIDTH-1:0] refill_pair_lo;
+    logic [PAIR_WIDTH-1:0] refill_pair_hi;
 
-    always_comb begin
-        refill_line = '0;
-        for (int w = 0; w < WORDS_PER_LINE; w++)
-            refill_line[w*DATA_WIDTH +: DATA_WIDTH] = rf_buffer[w];
-    end
+    assign refill_pair_lo = {rf_buffer[1], rf_buffer[0]};
+    assign refill_pair_hi = {rf_buffer[3], rf_buffer[2]};
 
     //fsm
     typedef enum logic [2:0] {
@@ -307,7 +286,8 @@ module dcache_7stg
         STORE_DONE,
         REFILL_REQ,
         REFILL_DATA,
-        REFILL_DONE
+        REFILL_COMMIT_LO,
+        REFILL_COMMIT_HI
     } state_t;
 
     state_t state, next_state;
@@ -343,10 +323,14 @@ module dcache_7stg
 
             REFILL_DATA: begin
                 if (arb_valid && arb_last)
-                    next_state = REFILL_DONE;
+                    next_state = rf_uncacheable ? IDLE : REFILL_COMMIT_LO;
             end
 
-            REFILL_DONE: begin
+            REFILL_COMMIT_LO: begin
+                next_state = REFILL_COMMIT_HI;
+            end
+
+            REFILL_COMMIT_HI: begin
                 next_state = IDLE;
             end
 
@@ -397,13 +381,18 @@ module dcache_7stg
                 REFILL_DATA: begin
                     if (arb_valid)
                         rf_valid[rf_word_sel] <= 1'b1;
+                    if (arb_valid && arb_last && rf_uncacheable) begin
+                        rf_valid       <= '0;
+                        lookup_valid_q <= 1'b0;
+                    end
                 end
 
-                REFILL_DONE: begin
-                    if (!rf_uncacheable) begin
-                        cache_valid[rf_idx][evict_way] <= 1'b1;
-                        lru[rf_idx] <= ~evict_way;
-                    end
+                REFILL_COMMIT_LO: begin
+                end
+
+                REFILL_COMMIT_HI: begin
+                    cache_valid[rf_idx][evict_way] <= 1'b1;
+                    lru[rf_idx] <= ~evict_way;
                     rf_valid       <= '0;
                     lookup_valid_q <= 1'b0;
                 end
@@ -480,7 +469,10 @@ module dcache_7stg
                 end
             end
 
-            REFILL_DONE: begin
+            REFILL_COMMIT_LO: begin
+            end
+
+            REFILL_COMMIT_HI: begin
             end
 
             default: begin
@@ -496,17 +488,15 @@ module dcache_7stg
         tag_din       = {DC_WAYS{rf_tag}};
         tag_wmask     = '0;
 
-        data0_csb     = 1'b1;
-        data0_web     = 1'b1;
-        data0_addr    = addr_idx;
-        data0_din     = refill_line;
-        data0_wmask   = '0;
+        data0_en      = 1'b0;
+        data0_we      = 1'b0;
+        data0_addr    = {addr_idx, addr_word_sel[1]};
+        data0_din     = '0;
 
-        data1_csb     = 1'b1;
-        data1_web     = 1'b1;
-        data1_addr    = addr_idx;
-        data1_din     = refill_line;
-        data1_wmask   = '0;
+        data1_en      = 1'b0;
+        data1_we      = 1'b0;
+        data1_addr    = {addr_idx, addr_word_sel[1]};
+        data1_din     = '0;
 
         case (state)
             IDLE: begin
@@ -515,43 +505,41 @@ module dcache_7stg
                     tag_web    = 1'b1;
                     tag_addr   = addr_idx;
 
-                    data0_csb  = 1'b0;
-                    data0_web  = 1'b1;
-                    data0_addr = addr_idx;
+                    data0_en   = 1'b1;
+                    data0_we   = 1'b0;
+                    data0_addr = {addr_idx, addr_word_sel[1]};
 
-                    data1_csb  = 1'b0;
-                    data1_web  = 1'b1;
-                    data1_addr = addr_idx;
+                    data1_en   = 1'b1;
+                    data1_we   = 1'b0;
+                    data1_addr = {addr_idx, addr_word_sel[1]};
                 end
             end
 
             LOOKUP: begin
                 if (store_hit_update) begin
                     if (!hit_way) begin
-                        data0_csb   = 1'b0;
-                        data0_web   = 1'b0;
-                        data0_addr  = lookup_idx_q;
-                        data0_din   = store_line_next;
-                        data0_wmask = store_wmask_next;
+                        data0_en   = 1'b1;
+                        data0_we   = 1'b1;
+                        data0_addr = {lookup_idx_q, lookup_word_sel_q[1]};
+                        data0_din  = store_pair_next;
                     end else begin
-                        data1_csb   = 1'b0;
-                        data1_web   = 1'b0;
-                        data1_addr  = lookup_idx_q;
-                        data1_din   = store_line_next;
-                        data1_wmask = store_wmask_next;
+                        data1_en   = 1'b1;
+                        data1_we   = 1'b1;
+                        data1_addr = {lookup_idx_q, lookup_word_sel_q[1]};
+                        data1_din  = store_pair_next;
                     end
                 end else if (lookup_done && mem_req) begin
                     tag_csb    = 1'b0;
                     tag_web    = 1'b1;
                     tag_addr   = addr_idx;
 
-                    data0_csb  = 1'b0;
-                    data0_web  = 1'b1;
-                    data0_addr = addr_idx;
+                    data0_en   = 1'b1;
+                    data0_we   = 1'b0;
+                    data0_addr = {addr_idx, addr_word_sel[1]};
 
-                    data1_csb  = 1'b0;
-                    data1_web  = 1'b1;
-                    data1_addr = addr_idx;
+                    data1_en   = 1'b1;
+                    data1_we   = 1'b0;
+                    data1_addr = {addr_idx, addr_word_sel[1]};
                 end
             end
 
@@ -561,13 +549,13 @@ module dcache_7stg
                     tag_web    = 1'b1;
                     tag_addr   = addr_idx;
 
-                    data0_csb  = 1'b0;
-                    data0_web  = 1'b1;
-                    data0_addr = addr_idx;
+                    data0_en   = 1'b1;
+                    data0_we   = 1'b0;
+                    data0_addr = {addr_idx, addr_word_sel[1]};
 
-                    data1_csb  = 1'b0;
-                    data1_web  = 1'b1;
-                    data1_addr = addr_idx;
+                    data1_en   = 1'b1;
+                    data1_we   = 1'b0;
+                    data1_addr = {addr_idx, addr_word_sel[1]};
                 end
             end
 
@@ -577,27 +565,37 @@ module dcache_7stg
             REFILL_DATA: begin
             end
 
-            REFILL_DONE: begin
-                if (!rf_uncacheable) begin
-                    tag_csb   = 1'b0;
-                    tag_web   = 1'b0;
-                    tag_addr  = rf_idx;
-                    tag_din   = {DC_WAYS{rf_tag}};
-                    tag_wmask = evict_way ? 2'b10 : 2'b01;
+            REFILL_COMMIT_LO: begin
+                if (!evict_way) begin
+                    data0_en   = 1'b1;
+                    data0_we   = 1'b1;
+                    data0_addr = {rf_idx, 1'b0};
+                    data0_din  = refill_pair_lo;
+                end else begin
+                    data1_en   = 1'b1;
+                    data1_we   = 1'b1;
+                    data1_addr = {rf_idx, 1'b0};
+                    data1_din  = refill_pair_lo;
+                end
+            end
 
-                    if (!evict_way) begin
-                        data0_csb   = 1'b0;
-                        data0_web   = 1'b0;
-                        data0_addr  = rf_idx;
-                        data0_din   = refill_line;
-                        data0_wmask = {WORDS_PER_LINE{1'b1}};
-                    end else begin
-                        data1_csb   = 1'b0;
-                        data1_web   = 1'b0;
-                        data1_addr  = rf_idx;
-                        data1_din   = refill_line;
-                        data1_wmask = {WORDS_PER_LINE{1'b1}};
-                    end
+            REFILL_COMMIT_HI: begin
+                tag_csb   = 1'b0;
+                tag_web   = 1'b0;
+                tag_addr  = rf_idx;
+                tag_din   = {DC_WAYS{rf_tag}};
+                tag_wmask = evict_way ? 2'b10 : 2'b01;
+
+                if (!evict_way) begin
+                    data0_en   = 1'b1;
+                    data0_we   = 1'b1;
+                    data0_addr = {rf_idx, 1'b1};
+                    data0_din  = refill_pair_hi;
+                end else begin
+                    data1_en   = 1'b1;
+                    data1_we   = 1'b1;
+                    data1_addr = {rf_idx, 1'b1};
+                    data1_din  = refill_pair_hi;
                 end
             end
 
@@ -664,7 +662,15 @@ module dcache_7stg
                 dcache_ready = 1'b0;
             end
 
-            REFILL_DONE: begin
+            REFILL_COMMIT_LO: begin
+                if (cwf_valid) begin
+                    rdata        = rf_merged_rdata;
+                    dcache_valid = 1'b1;
+                end
+                dcache_ready = 1'b0;
+            end
+
+            REFILL_COMMIT_HI: begin
                 if (cwf_valid) begin
                     rdata        = rf_merged_rdata;
                     dcache_valid = 1'b1;
