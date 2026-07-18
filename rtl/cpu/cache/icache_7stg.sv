@@ -21,7 +21,8 @@
 //
 // Author       : NGUYEN TO QUOC VIET
 // Date         : 2026-05-07
-// Version      : 2.6
+// Version      : 2.7
+// Changes v2.7 : map tag and split-line data to ASAP7-compatible 1RW wrappers.
 // Changes v2.6 : keep speculative refill and commit line after lookup flush.
 // Changes v2.5 : use lookup metadata as one-entry request slot.
 //                Serve any available word from the active refill buffer.
@@ -62,6 +63,7 @@ module icache_7stg
     output logic [ADDR_WIDTH-1:0] icache_addr
 );
     localparam LINE_WIDTH = DATA_WIDTH * WORDS_PER_LINE;
+    localparam PAIR_WIDTH = LINE_WIDTH / 2;
 
     //address decode - live IF1 request
     logic [WORD_SEL_BITS-1:0]   pc_word_sel;
@@ -80,49 +82,50 @@ module icache_7stg
     logic                       lookup_accept;
 
     //SRAM storage
-    logic                       tag_csb;
-    logic                       tag_web;
+    logic                       tag_en;
+    logic                       tag_we;
     logic [IC_IDX_BITS-1:0]     tag_addr;
     logic [IC_TAG_BITS-1:0]     tag_din;
     logic [IC_TAG_BITS-1:0]     tag_dout;
 
-    logic                       data_csb;
-    logic                       data_web;
+    logic                       data_en;
+    logic                       data_we;
     logic [IC_IDX_BITS-1:0]     data_addr;
     logic [LINE_WIDTH-1:0]      data_din;
     logic [LINE_WIDTH-1:0]      data_dout;
+    logic [PAIR_WIDTH-1:0]      data_lo_dout;
+    logic [PAIR_WIDTH-1:0]      data_hi_dout;
 
     logic [IC_SETS-1:0]         cache_valid;
 
-    sram_1rw #(
-        .ADDR_W  (IC_IDX_BITS),
-        .DATA_W  (IC_TAG_BITS),
-        .DEPTH   (IC_SETS),
-        .WMASK_W (1)
-    ) tag_sram (
+    sram_256x20_1rw tag_sram (
         .clk   (clk),
-        .csb   (tag_csb),
-        .web   (tag_web),
-        .wmask (1'b1),
+        .en    (tag_en),
+        .we    (tag_we),
         .addr  (tag_addr),
-        .din   (tag_din),
-        .dout  (tag_dout)
+        .wdata (tag_din),
+        .rdata (tag_dout)
     );
 
-    sram_1rw #(
-        .ADDR_W  (IC_IDX_BITS),
-        .DATA_W  (LINE_WIDTH),
-        .DEPTH   (IC_SETS),
-        .WMASK_W (WORDS_PER_LINE)
-    ) data_sram (
+    sram_256x64_1rw data_lo_sram (
         .clk   (clk),
-        .csb   (data_csb),
-        .web   (data_web),
-        .wmask ({WORDS_PER_LINE{1'b1}}),
+        .en    (data_en),
+        .we    (data_we),
         .addr  (data_addr),
-        .din   (data_din),
-        .dout  (data_dout)
+        .wdata (data_din[PAIR_WIDTH-1:0]),
+        .rdata (data_lo_dout)
     );
+
+    sram_256x64_1rw data_hi_sram (
+        .clk   (clk),
+        .en    (data_en),
+        .we    (data_we),
+        .addr  (data_addr),
+        .wdata (data_din[LINE_WIDTH-1:PAIR_WIDTH]),
+        .rdata (data_hi_dout)
+    );
+
+    assign data_dout = {data_hi_dout, data_lo_dout};
 
     //lookup result
     logic cache_hit;
@@ -264,48 +267,48 @@ module icache_7stg
 
     //SRAM control
     always_comb begin
-        tag_csb   = 1'b1;
-        tag_web   = 1'b1;
+        tag_en    = 1'b0;
+        tag_we    = 1'b0;
         tag_addr  = pc_idx;
         tag_din   = rf_tag;
 
-        data_csb  = 1'b1;
-        data_web  = 1'b1;
+        data_en   = 1'b0;
+        data_we   = 1'b0;
         data_addr = pc_idx;
 
         case (state)
             IDLE: begin
                 if (lookup_accept || lookup_valid_q) begin
-                    tag_csb   = 1'b0;
-                    tag_web   = 1'b1;
+                    tag_en    = 1'b1;
+                    tag_we    = 1'b0;
                     tag_addr  = lookup_accept ? pc_idx : lookup_idx_q;
 
-                    data_csb  = 1'b0;
-                    data_web  = 1'b1;
+                    data_en   = 1'b1;
+                    data_we   = 1'b0;
                     data_addr = lookup_accept ? pc_idx : lookup_idx_q;
                 end
             end
 
             LOOKUP: begin
                 if (lookup_accept) begin
-                    tag_csb   = 1'b0;
-                    tag_web   = 1'b1;
+                    tag_en    = 1'b1;
+                    tag_we    = 1'b0;
                     tag_addr  = pc_idx;
 
-                    data_csb  = 1'b0;
-                    data_web  = 1'b1;
+                    data_en   = 1'b1;
+                    data_we   = 1'b0;
                     data_addr = pc_idx;
                 end
             end
 
             REFILL_DONE: begin
-                tag_csb   = 1'b0;
-                tag_web   = 1'b0;
+                tag_en    = 1'b1;
+                tag_we    = 1'b1;
                 tag_addr  = rf_idx;
                 tag_din   = rf_tag;
 
-                data_csb  = 1'b0;
-                data_web  = 1'b0;
+                data_en   = 1'b1;
+                data_we   = 1'b1;
                 data_addr = rf_idx;
             end
         endcase

@@ -79,7 +79,7 @@
 ### Full-word tag update
 
 - ASAP7 tag macro không có write mask; `tag_wmask` và generic masked tag SRAM đã bị loại bỏ.
-- Tại `REFILL_COMMIT_HI`, controller giữ tag của non-victim way, replace victim field bằng `rf_tag`, zero field invalid và full-write 48-bit.
+- Tại `REFILL_COMMIT_HI`, controller giữ raw tag của non-victim way, replace victim field bằng `rf_tag` và full-write 48-bit; valid bits tiếp tục quyết định tag field nào có nghĩa.
 - Tag write vẫn xảy ra đồng thời với data high-pair commit; không thêm FSM state hoặc refill cycle.
 
 ### Verification
@@ -89,3 +89,25 @@
 - MEM-path generic và ASAP7: `16 PASS | 0 FAIL`.
 - SoC RV32UI generic và ASAP7: `38 PASS | 0 FAIL | 0 TIMEOUT`.
 - Vivado 2025.2 generic backend nhận tag storage là RAM nhưng tối ưu thành `128x42` LUTRAM vì address MSB và sáu padding bit không được dùng; ASIC backend vẫn instantiate explicit macro `256x48`.
+
+
+## I-Cache ASAP7 SRAM checkpoint (2026-07-18)
+
+### Decision
+
+- Tag array dùng một `srambank_64x4x20_6t122`, có logical organization `256x20`; toàn bộ `set[7:0]` đều có nghĩa.
+- Data array dùng hai `sram_256x64_1rw` song song: một macro giữ `low64`, macro còn lại giữ `high64` của cùng cache line.
+- Hai data macros dùng chung enable, write-enable và set address; read data được ghép lại thành `{high64, low64}`.
+- `cache_valid` tiếp tục dùng flop array; external ready/valid contract và refill FSM không đổi.
+
+### Refill commit
+
+- I-Cache chỉ full-write cache line sau khi nhận đủ bốn words, nên không cần write mask hoặc read-modify-write.
+- Tại `REFILL_DONE`, tag macro và cả hai data macros được ghi song song trong một cycle.
+
+### Verification
+
+- Verilator lint sạch cho I-Cache và cache subsystem ở generic và `ASAP7_SRAM` backends.
+- Fetch-path generic và ASAP7: `23 PASS | 0 FAIL`; gồm committed low/high SRAM hits sau khi refill buffer chuyển sang line khác.
+- SoC RV32UI generic và ASAP7: `38 PASS | 0 FAIL | 0 TIMEOUT`.
+- Vivado 2025.2 generic backend infer `1x RAMB18E2` cho tag và `2x RAMB36E2` cho data, không dùng LUTRAM.

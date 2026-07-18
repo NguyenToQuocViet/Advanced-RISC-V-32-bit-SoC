@@ -524,6 +524,16 @@ module fetch_path_7stg_tb;
         expect_fire_redirect(PC_0, rom_word(PC_0), 1'b1, PC_40, "T3 DBP taken redirects PC0");
         expect_fire(PC_40, rom_word(PC_40), "T3 target PC40 fetched");
 
+        //Test 3b: committed low/high halves hit after refill buffer moves away.
+        refills_before_revisit = refill_count;
+        pulse_ex_redirect(PC_4);
+        expect_fire(PC_4, rom_word(PC_4), "T3b committed low-half SRAM hit");
+        expect_fire(PC_8, rom_word(PC_8), "T3b committed high-half SRAM hit");
+        if (refill_count == refills_before_revisit)
+            mark_pass("T3b committed line reused without refill");
+        else
+            mark_fail("T3b committed line issued another refill");
+
         //Test 4: EX mispredict overrides IF2 redirect.
         stall = 1'b1;
         train_dbp_taken(PC_4, PC_40);
