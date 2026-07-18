@@ -274,8 +274,8 @@ module dcache_7stg
     logic [TAG_ARRAY_WIDTH-1:0] tag_write_data;
 
     always_comb begin
-        tag_write_way0 = cache_valid[rf_idx][0] ? tag_way0 : '0;
-        tag_write_way1 = cache_valid[rf_idx][1] ? tag_way1 : '0;
+        tag_write_way0 = tag_way0;
+        tag_write_way1 = tag_way1;
 
         if (evict_way)
             tag_write_way1 = rf_tag;
