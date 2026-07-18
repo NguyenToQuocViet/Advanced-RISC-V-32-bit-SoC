@@ -70,8 +70,11 @@ module dcache_7stg
     output logic                    dcache_req,
     output logic [ADDR_WIDTH-1:0]   dcache_addr
 );
-    localparam PAIR_WIDTH      = DATA_WIDTH * 2;
-    localparam PAIR_ADDR_WIDTH = DC_IDX_BITS + 1;
+    localparam PAIR_WIDTH       = DATA_WIDTH * 2;
+    localparam PAIR_ADDR_WIDTH  = DC_IDX_BITS + 1;
+    localparam TAG_ARRAY_WIDTH  = 48;
+    localparam TAG_ADDR_WIDTH   = 8;
+    localparam TAG_PAD_WIDTH    = TAG_ARRAY_WIDTH - (DC_TAG_BITS * DC_WAYS);
 
     //address decode - live MEM1 request
     logic [WORD_SEL_BITS-1:0] addr_word_sel;
@@ -98,12 +101,11 @@ module dcache_7stg
     logic [STRB_WIDTH-1:0]      lookup_wstrb_q;
 
     //SRAM storage
-    logic                           tag_csb;
-    logic                           tag_web;
-    logic [DC_IDX_BITS-1:0]         tag_addr;
-    logic [DC_TAG_BITS*DC_WAYS-1:0] tag_din;
-    logic [DC_TAG_BITS*DC_WAYS-1:0] tag_dout;
-    logic [DC_WAYS-1:0]             tag_wmask;
+    logic                           tag_en;
+    logic                           tag_we;
+    logic [TAG_ADDR_WIDTH-1:0]      tag_addr;
+    logic [TAG_ARRAY_WIDTH-1:0]     tag_din;
+    logic [TAG_ARRAY_WIDTH-1:0]     tag_dout;
 
     logic                           data0_en;
     logic                           data0_we;
@@ -120,19 +122,13 @@ module dcache_7stg
     logic [DC_SETS-1:0][DC_WAYS-1:0] cache_valid;
     logic [DC_SETS-1:0]              lru;
 
-    sram_1rw #(
-        .ADDR_W  (DC_IDX_BITS),
-        .DATA_W  (DC_TAG_BITS * DC_WAYS),
-        .DEPTH   (DC_SETS),
-        .WMASK_W (DC_WAYS)
-    ) tag_sram (
+    sram_256x48_1rw tag_sram (
         .clk   (clk),
-        .csb   (tag_csb),
-        .web   (tag_web),
-        .wmask (tag_wmask),
+        .en    (tag_en),
+        .we    (tag_we),
         .addr  (tag_addr),
-        .din   (tag_din),
-        .dout  (tag_dout)
+        .wdata (tag_din),
+        .rdata (tag_dout)
     );
 
     sram_256x64_1rw data_way0_sram (
@@ -270,6 +266,23 @@ module dcache_7stg
             evict_way = 1'b1;
         else
             evict_way = lru[rf_idx];
+    end
+
+    //tag full-write merge
+    logic [DC_TAG_BITS-1:0]     tag_write_way0;
+    logic [DC_TAG_BITS-1:0]     tag_write_way1;
+    logic [TAG_ARRAY_WIDTH-1:0] tag_write_data;
+
+    always_comb begin
+        tag_write_way0 = cache_valid[rf_idx][0] ? tag_way0 : '0;
+        tag_write_way1 = cache_valid[rf_idx][1] ? tag_way1 : '0;
+
+        if (evict_way)
+            tag_write_way1 = rf_tag;
+        else
+            tag_write_way0 = rf_tag;
+
+        tag_write_data = {{TAG_PAD_WIDTH{1'b0}}, tag_write_way1, tag_write_way0};
     end
 
     //refill write data packing
@@ -482,11 +495,10 @@ module dcache_7stg
 
     //SRAM control
     always_comb begin
-        tag_csb       = 1'b1;
-        tag_web       = 1'b1;
-        tag_addr      = addr_idx;
-        tag_din       = {DC_WAYS{rf_tag}};
-        tag_wmask     = '0;
+        tag_en        = 1'b0;
+        tag_we        = 1'b0;
+        tag_addr      = {{(TAG_ADDR_WIDTH-DC_IDX_BITS){1'b0}}, addr_idx};
+        tag_din       = tag_write_data;
 
         data0_en      = 1'b0;
         data0_we      = 1'b0;
@@ -501,9 +513,9 @@ module dcache_7stg
         case (state)
             IDLE: begin
                 if (mem_req) begin
-                    tag_csb    = 1'b0;
-                    tag_web    = 1'b1;
-                    tag_addr   = addr_idx;
+                    tag_en     = 1'b1;
+                    tag_we     = 1'b0;
+                    tag_addr   = {{(TAG_ADDR_WIDTH-DC_IDX_BITS){1'b0}}, addr_idx};
 
                     data0_en   = 1'b1;
                     data0_we   = 1'b0;
@@ -529,9 +541,9 @@ module dcache_7stg
                         data1_din  = store_pair_next;
                     end
                 end else if (lookup_done && mem_req) begin
-                    tag_csb    = 1'b0;
-                    tag_web    = 1'b1;
-                    tag_addr   = addr_idx;
+                    tag_en     = 1'b1;
+                    tag_we     = 1'b0;
+                    tag_addr   = {{(TAG_ADDR_WIDTH-DC_IDX_BITS){1'b0}}, addr_idx};
 
                     data0_en   = 1'b1;
                     data0_we   = 1'b0;
@@ -545,9 +557,9 @@ module dcache_7stg
 
             STORE_DONE: begin
                 if (!wb_full && mem_req) begin
-                    tag_csb    = 1'b0;
-                    tag_web    = 1'b1;
-                    tag_addr   = addr_idx;
+                    tag_en     = 1'b1;
+                    tag_we     = 1'b0;
+                    tag_addr   = {{(TAG_ADDR_WIDTH-DC_IDX_BITS){1'b0}}, addr_idx};
 
                     data0_en   = 1'b1;
                     data0_we   = 1'b0;
@@ -580,11 +592,10 @@ module dcache_7stg
             end
 
             REFILL_COMMIT_HI: begin
-                tag_csb   = 1'b0;
-                tag_web   = 1'b0;
-                tag_addr  = rf_idx;
-                tag_din   = {DC_WAYS{rf_tag}};
-                tag_wmask = evict_way ? 2'b10 : 2'b01;
+                tag_en   = 1'b1;
+                tag_we   = 1'b1;
+                tag_addr = {{(TAG_ADDR_WIDTH-DC_IDX_BITS){1'b0}}, rf_idx};
+                tag_din  = tag_write_data;
 
                 if (!evict_way) begin
                     data0_en   = 1'b1;

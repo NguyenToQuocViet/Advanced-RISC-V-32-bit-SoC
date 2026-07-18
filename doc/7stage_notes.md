@@ -64,5 +64,28 @@
 
 ### Remaining
 
-- Tag SRAM còn packed 42-bit và dùng `tag_wmask`; migrate tag sang ASAP7 là quyết định kế tiếp, độc lập với data array.
+- Tag SRAM migration được hoàn tất trong checkpoint kế tiếp; I-Cache macro mapping là storage boundary tiếp theo.
 - Cách đóng gói third-party collateral/GDS khi push GitHub vẫn chưa chốt.
+
+## D-Cache ASAP7 tag-array checkpoint (2026-07-17)
+
+### Decision
+
+- Một `srambank_64x4x48_6t122` chứa tag của cả hai way: `{6'b0, tag_way1[20:0], tag_way0[20:0]}`.
+- Macro có 256 entry; D-Cache dùng 128 entry qua address `{1'b0, set[6:0]}`.
+- Một synchronous read trả đồng thời hai tag cho hai comparator; hit latency và external ready/valid contract không đổi.
+- Valid bits và LRU tiếp tục dùng flop vì cần reset và cập nhật độc lập.
+
+### Full-word tag update
+
+- ASAP7 tag macro không có write mask; `tag_wmask` và generic masked tag SRAM đã bị loại bỏ.
+- Tại `REFILL_COMMIT_HI`, controller giữ tag của non-victim way, replace victim field bằng `rf_tag`, zero field invalid và full-write 48-bit.
+- Tag write vẫn xảy ra đồng thời với data high-pair commit; không thêm FSM state hoặc refill cycle.
+
+### Verification
+
+- Verilator lint sạch cho generic và `ASAP7_SRAM` backends.
+- D-Cache directed generic và ASAP7: `76 PASS | 0 FAIL`; gồm replace từng way và kiểm tra tag way còn lại được giữ nguyên.
+- MEM-path generic và ASAP7: `16 PASS | 0 FAIL`.
+- SoC RV32UI generic và ASAP7: `38 PASS | 0 FAIL | 0 TIMEOUT`.
+- Vivado 2025.2 generic backend nhận tag storage là RAM nhưng tối ưu thành `128x42` LUTRAM vì address MSB và sáu padding bit không được dùng; ASIC backend vẫn instantiate explicit macro `256x48`.

@@ -569,6 +569,48 @@ module dcache_7stg_tb;
         //8. uncacheable load should return data but not allocate
         run_uncacheable_load(ADDR_U0, 32'h1BAD_C0DE);
 
+        //9. replace way1, preserve way0 tag
+        reset_dut();
+        launch_load(ADDR_A0, "T9a fill way0 A");
+        send_refill_line(ADDR_A0, 32'hA0A0_0000, 32'hA0A0_0001,
+                         32'hA0A0_0002, 32'hA0A0_0003,
+                         1'b1, 32'hA0A0_0000, "T9a refill A");
+        launch_load(ADDR_B0, "T9b fill way1 B");
+        send_refill_line(ADDR_B0, 32'hB0B0_0000, 32'hB0B0_0001,
+                         32'hB0B0_0002, 32'hB0B0_0003,
+                         1'b1, 32'hB0B0_0000, "T9b refill B");
+        launch_load(ADDR_A0, "T9c touch A, select way1 victim");
+        expect_data(32'hA0A0_0000, "T9c A hit before way1 replace");
+        step();
+        launch_load(ADDR_C0, "T9d replace way1 with C");
+        send_refill_line(ADDR_C0, 32'hC0C0_0000, 32'hC0C0_0001,
+                         32'hC0C0_0002, 32'hC0C0_0003,
+                         1'b1, 32'hC0C0_0000, "T9d refill C into way1");
+        launch_load(ADDR_A0, "T9e verify way0 tag preserved");
+        expect_data(32'hA0A0_0000, "T9e way0 survives way1 tag write");
+        step();
+
+        //10. replace way0, preserve way1 tag
+        reset_dut();
+        launch_load(ADDR_A0, "T10a fill way0 A");
+        send_refill_line(ADDR_A0, 32'hA1A1_0000, 32'hA1A1_0001,
+                         32'hA1A1_0002, 32'hA1A1_0003,
+                         1'b1, 32'hA1A1_0000, "T10a refill A");
+        launch_load(ADDR_B0, "T10b fill way1 B");
+        send_refill_line(ADDR_B0, 32'hB1B1_0000, 32'hB1B1_0001,
+                         32'hB1B1_0002, 32'hB1B1_0003,
+                         1'b1, 32'hB1B1_0000, "T10b refill B");
+        launch_load(ADDR_B0, "T10c touch B, select way0 victim");
+        expect_data(32'hB1B1_0000, "T10c B hit before way0 replace");
+        step();
+        launch_load(ADDR_C0, "T10d replace way0 with C");
+        send_refill_line(ADDR_C0, 32'hC1C1_0000, 32'hC1C1_0001,
+                         32'hC1C1_0002, 32'hC1C1_0003,
+                         1'b1, 32'hC1C1_0000, "T10d refill C into way0");
+        launch_load(ADDR_B0, "T10e verify way1 tag preserved");
+        expect_data(32'hB1B1_0000, "T10e way1 survives way0 tag write");
+        step();
+
         $display("--------------------------------------------");
         $display("DCACHE_7STG_TB SUMMARY: PASS=%0d FAIL=%0d", pass_count, fail_count);
         $display("--------------------------------------------");
