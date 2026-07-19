@@ -230,9 +230,8 @@ module rv32ui_tb;
     // -------------------------------------------------------------------------
     // Main sequence
     // -------------------------------------------------------------------------
-    // Duong dan den .mem files (tuong doi so voi noi Vivado chay TCL: work/)
-    // Vivado chay tu work/ -> can di len 5 cap de toi tb/riscv_test/build/
-    localparam string MEM_BASE = "../../../../../tb/riscv_test/build/";
+    //repo-root relative ISA images
+    localparam string MEM_BASE = "tb/riscv_test/build/";
 
     int dummy;
 

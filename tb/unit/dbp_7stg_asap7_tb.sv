@@ -13,7 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // -----------------------------------------------------------------------------
 // Project      : Advanced RISC-V 32-bit Processor
-// Module       : dbp_7stg_tb
+// Module       : dbp_7stg_asap7_tb
 // Description  : Directed testbench for 7-stage DBP timing and predictor state.
 //
 // Author       : NGUYEN TO QUOC VIET
@@ -23,7 +23,7 @@
 
 `timescale 1ns/1ps
 
-module dbp_7stg_tb;
+module dbp_7stg_asap7_tb;
     import cpu_pkg::*;
 
     //system
@@ -47,7 +47,7 @@ module dbp_7stg_tb;
     logic                  ex_actual_taken;
     logic [ADDR_WIDTH-1:0] ex_actual_target;
 
-    dbp_7stg dut (
+    dbp_7stg_asap7 dut (
         .clk              (clk),
         .rst_n            (rst_n),
         .if1_pc           (if1_pc),
