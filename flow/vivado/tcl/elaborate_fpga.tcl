@@ -1,6 +1,10 @@
 # ==========================================
 # elaborate_fpga.tcl — Elaborate fpga_top for KV260
 # ==========================================
+set script_dir [file dirname [file normalize [info script]]]
+set repo_root [file normalize [file join $script_dir ../../..]]
+file mkdir [file join $repo_root build]
+cd [file join $repo_root build]
 create_project -in_memory -part xck26-sfvc784-2LV-c
 
 # Packages

@@ -3,14 +3,20 @@
 # ==========================================
 set project_name [file tail [file dirname [pwd]]]
 open_project ${project_name}.xpr
+set script_dir [file dirname [file normalize [info script]]]
+set repo_root [file normalize [file join $script_dir ../../..]]
 
 # Nếu truyền tên TB qua -tclargs thì override, không thì auto
 if {[llength $argv] > 0} {
     set tb_top [lindex $argv 0]
     puts "========== Testbench: $tb_top =========="
 
-    # Tim TB file trong ca 2 thu muc: tb/direct_test/ va tb/riscv_test/
-    set search_dirs [list "../tb/direct_test" "../tb/riscv_test"]
+    # Search all first-party and ISA testbench groups.
+    set search_dirs [list \
+        [file join $repo_root tb unit] \
+        [file join $repo_root tb integration] \
+        [file join $repo_root tb models] \
+        [file join $repo_root tb riscv_test]]
     set tb_file ""
     foreach dir $search_dirs {
         set candidate [file normalize "${dir}/${tb_top}.sv"]
@@ -20,7 +26,7 @@ if {[llength $argv] > 0} {
         }
     }
     if {$tb_file eq ""} {
-        error "Khong tim thay ${tb_top}.sv trong tb/direct_test/ hoac tb/riscv_test/"
+        error "Cannot find ${tb_top}.sv in repository testbench groups"
     }
 
     if {[llength [get_files -quiet $tb_file]] == 0} {

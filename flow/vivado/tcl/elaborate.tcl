@@ -1,6 +1,10 @@
 # ==========================================
 # elaborate.tcl
 # ==========================================
+set script_dir [file dirname [file normalize [info script]]]
+set repo_root [file normalize [file join $script_dir ../../..]]
+file mkdir [file join $repo_root build]
+cd [file join $repo_root build]
 create_project -in_memory -part xc7a35ticsg324-1L 
 
 # Hàm đệ quy quét toàn bộ thư mục con để tìm file

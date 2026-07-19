@@ -1,17 +1,33 @@
 # ==========================================
-# synth_fpga.tcl — Full synthesis fpga_top for KV260
+# create_fpga_project.tcl — Create persistent Vivado project for fpga_top (KV260)
+# Usage:
+#   vivado -mode batch -source ../tcl/create_fpga_project.tcl
+#   (creates project in work/fpga_demo/)
+# Then open GUI:
+#   vivado work/fpga_demo/fpga_demo.xpr
 # ==========================================
-create_project -in_memory -part xck26-sfvc784-2LV-c
+
+set script_dir [file dirname [file normalize [info script]]]
+set repo_root [file normalize [file join $script_dir ../../..]]
+file mkdir [file join $repo_root build]
+cd [file join $repo_root build]
+
+set proj_name "fpga_demo"
+set proj_dir  "fpga_demo"
+set part      "xck26-sfvc784-2LV-c"
+
+# Create project on disk
+create_project $proj_name $proj_dir -part $part -force
 
 # Packages
-read_verilog -sv {
+add_files -norecurse {
     ../rtl/cpu/cache/cache_pkg.sv
     ../rtl/cpu/cache/axi_pkg.sv
     ../rtl/cpu/core/cpu_pkg.sv
 }
 
 # 5-stage core
-read_verilog -sv {
+add_files -norecurse {
     ../rtl/cpu/core/riscv_core.sv
     ../rtl/cpu/core/fcu.sv
     ../rtl/cpu/core/dbp.sv
@@ -35,7 +51,7 @@ read_verilog -sv {
 }
 
 # Cache subsystem
-read_verilog -sv {
+add_files -norecurse {
     ../rtl/cpu/cache/cache_subsystem.sv
     ../rtl/cpu/cache/icache.sv
     ../rtl/cpu/cache/dcache.sv
@@ -44,25 +60,26 @@ read_verilog -sv {
 }
 
 # SoC
-read_verilog -sv ../rtl/cpu/riscv_soc.sv
+add_files -norecurse ../rtl/cpu/riscv_soc.sv
 
 # FPGA wrapper
-read_verilog -sv {
+add_files -norecurse {
     ../rtl/fpga/uart_tx.sv
     ../rtl/fpga/uart_axi.sv
     ../rtl/fpga/axi_bram.sv
     ../rtl/fpga/axi_decoder.sv
     ../rtl/fpga/fpga_top.sv
+    ../rtl/fpga/fpga_top_wrapper.v
 }
 
 # Constraints
-read_xdc ../constrs/kv260.xdc
+add_files -fileset constrs_1 -norecurse ../constrs/kv260.xdc
 
-# Synthesis
-synth_design -top fpga_top -flatten_hierarchy rebuilt
+# Set top module
+set_property top fpga_top [current_fileset]
 
-# Reports
-report_utilization -file fpga_synth_util.rpt
-report_timing_summary -file fpga_synth_timing.rpt
+# Set all SV files as SystemVerilog
+set_property file_type SystemVerilog [get_files *.sv]
 
-puts "=== Synthesis complete ==="
+puts "=== Project created: $proj_dir/$proj_name.xpr ==="
+puts "=== Open with: vivado $proj_dir/$proj_name.xpr ==="

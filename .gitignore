@@ -22,4 +22,12 @@ report.synctex.gz
 CLAUDE.md
 AGENTS.md
 obj_dir
-
+obj_dir*/
+build/
+.Xil/
+vivado_*/
+sw/reports/
+doc/*.aux
+doc/*.log
+doc/*.out
+doc/*.toc
