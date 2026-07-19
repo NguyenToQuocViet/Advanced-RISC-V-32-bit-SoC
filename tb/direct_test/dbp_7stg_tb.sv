@@ -72,6 +72,19 @@ module dbp_7stg_tb;
     localparam logic [ADDR_WIDTH-1:0] PC_C  = 32'h0001_0100;
     localparam logic [ADDR_WIDTH-1:0] TGT_A = 32'h0000_0300;
     localparam logic [ADDR_WIDTH-1:0] TGT_B = 32'h0000_0400;
+    localparam logic [ADDR_WIDTH-1:0] PC_Q  = 32'h0000_0f00;
+    localparam logic [ADDR_WIDTH-1:0] PC_D  = 32'h0000_0400;
+    localparam logic [ADDR_WIDTH-1:0] PC_ALIAS_OLD = 32'h0000_0600;
+    localparam logic [ADDR_WIDTH-1:0] PC_ALIAS_NEW = 32'h0001_0600;
+    localparam logic [ADDR_WIDTH-1:0] PC_COALESCE  = 32'h0000_0700;
+    localparam logic [ADDR_WIDTH-1:0] TGT_D = 32'h0000_1400;
+    localparam logic [ADDR_WIDTH-1:0] PC_OV0 = 32'h0000_0800;
+    localparam logic [ADDR_WIDTH-1:0] PC_OV1 = 32'h0000_0804;
+    localparam logic [ADDR_WIDTH-1:0] PC_OV2 = 32'h0000_0808;
+    localparam logic [ADDR_WIDTH-1:0] PC_OV3 = 32'h0000_080c;
+    localparam logic [ADDR_WIDTH-1:0] PC_OV4 = 32'h0000_0810;
+    localparam logic [ADDR_WIDTH-1:0] PC_DRAIN_A = 32'h0000_0900;
+    localparam logic [ADDR_WIDTH-1:0] PC_DRAIN_B = 32'h0000_0904;
 
     int pass_count;
     int fail_count;
@@ -125,6 +138,29 @@ module dbp_7stg_tb;
         end
     endtask
 
+    task automatic queue_update_while_read;
+        input logic [ADDR_WIDTH-1:0] query_pc;
+        input logic [ADDR_WIDTH-1:0] update_pc;
+        input logic [ADDR_WIDTH-1:0] update_target;
+        begin
+            @(negedge clk);
+            if1_pc           = query_pc;
+            if1_valid        = 1'b1;
+            stall            = 1'b0;
+            flush            = 1'b0;
+            ex_update_en     = 1'b1;
+            ex_pc            = update_pc;
+            ex_actual_taken  = 1'b1;
+            ex_actual_target = update_target;
+            @(posedge clk);
+            #1;
+            if1_valid        = 1'b0;
+            ex_update_en     = 1'b0;
+            ex_actual_taken  = 1'b0;
+            ex_actual_target = '0;
+        end
+    endtask
+
     task automatic launch_query;
         input logic [ADDR_WIDTH-1:0] t_if1_pc;
         input string                 desc;
@@ -169,6 +205,21 @@ module dbp_7stg_tb;
             if2_consume = 1'b1;
             step();
             if2_consume = 1'b0;
+        end
+    endtask
+
+    task automatic expect_queue_mask;
+        input logic [3:0] exp_mask;
+        input string      desc;
+        begin
+            if (dut.update_valid_q === exp_mask) begin
+                $display("PASS | %-45s queue=%b", desc, dut.update_valid_q);
+                pass_count++;
+            end else begin
+                $display("FAIL | %s", desc);
+                $display("       queue: got=%b exp=%b", dut.update_valid_q, exp_mask);
+                fail_count++;
+            end
         end
     endtask
 
@@ -257,6 +308,85 @@ module dbp_7stg_tb;
         flush     = 1'b0;
         if1_valid = 1'b0;
         expect_pred(1'b0, '0, "flush kills prediction response");
+
+        //9. same-cycle read/update forwards and remains stable while draining
+        queue_update_while_read(PC_D, PC_D, TGT_D);
+        expect_pred(1'b0, TGT_D, "same-cycle EX update forwards to IF2");
+        expect_queue_mask(4'b0001, "read collision enqueues update");
+
+        step();
+        expect_pred(1'b0, TGT_D, "drain keeps held IF2 response stable");
+        expect_queue_mask(4'b0000, "idle cycle drains queued update");
+
+        if2_consume = 1'b1;
+        step();
+        if2_consume = 1'b0;
+        check_query(PC_D, 1'b0, TGT_D, "drained update commits to SRAM");
+
+        //10. repeated index coalesces to the newest target
+        queue_update_while_read(PC_Q, PC_COALESCE, 32'h0000_1700);
+        queue_update_while_read(PC_Q, PC_COALESCE, 32'h0000_1710);
+        expect_queue_mask(4'b0001, "same-index updates coalesce");
+        launch_query(PC_COALESCE, "coalesced pending target");
+        expect_pred(1'b1, 32'h0000_1710, "coalesced pending target");
+
+        if2_consume = 1'b1;
+        step();
+        if2_consume = 1'b0;
+
+        //11. pending index shadows an older SRAM tag
+        do_update(PC_ALIAS_OLD, 1'b1, 32'h0000_1600);
+        queue_update_while_read(PC_Q, PC_ALIAS_NEW, 32'h0000_1610);
+        launch_query(PC_ALIAS_OLD, "pending alias shadows old SRAM entry");
+        expect_pred(1'b0, '0, "pending alias forces old-tag miss");
+        launch_query(PC_ALIAS_NEW, "pending alias new tag");
+        expect_pred(1'b1, 32'h0000_1610, "pending alias forwards new target");
+
+        if2_consume = 1'b1;
+        step();
+        if2_consume = 1'b0;
+        check_query(PC_ALIAS_OLD, 1'b0, '0, "committed alias replaces old tag");
+
+        //12. fifth distinct update drops oldest without stalling reads
+        queue_update_while_read(PC_Q, PC_OV0, 32'h0000_1800);
+        queue_update_while_read(PC_Q, PC_OV1, 32'h0000_1804);
+        queue_update_while_read(PC_Q, PC_OV2, 32'h0000_1808);
+        queue_update_while_read(PC_Q, PC_OV3, 32'h0000_180c);
+        queue_update_while_read(PC_Q, PC_OV4, 32'h0000_1810);
+        expect_queue_mask(4'b1111, "overflow keeps four newest updates");
+        launch_query(PC_OV0, "overflow-dropped oldest update");
+        expect_pred(1'b0, '0, "overflow drops oldest update");
+        launch_query(PC_OV4, "overflow-kept newest update");
+        expect_pred(1'b0, 32'h0000_1810, "overflow keeps newest update");
+
+        if2_consume = 1'b1;
+        repeat (4) step();
+        if2_consume = 1'b0;
+        expect_queue_mask(4'b0000, "four idle cycles drain full queue");
+        check_query(PC_OV1, 1'b0, 32'h0000_1804, "drain commits oldest retained update");
+
+        //13. drain and new EX update share one cycle
+        queue_update_while_read(PC_Q, PC_DRAIN_A, 32'h0000_1900);
+        do_update(PC_DRAIN_B, 1'b1, 32'h0000_1904);
+        expect_queue_mask(4'b0001, "drain captures simultaneous new update");
+        launch_query(PC_DRAIN_A, "drain committed old queue head");
+        expect_pred(1'b0, 32'h0000_1900, "drain committed old queue head");
+        launch_query(PC_DRAIN_B, "simultaneous update remains pending");
+        expect_pred(1'b0, 32'h0000_1904, "simultaneous update remains pending");
+
+        if2_consume = 1'b1;
+        step();
+        if2_consume = 1'b0;
+
+        //14. flush kills query metadata but preserves queued update
+        queue_update_while_read(PC_Q, 32'h0000_0a00, 32'h0000_1a00);
+        flush = 1'b1;
+        step();
+        flush = 1'b0;
+        expect_pred(1'b0, '0, "flush kills IF2 response during drain");
+        expect_queue_mask(4'b0000, "flush cycle commits queued update");
+        check_query(32'h0000_0a00, 1'b0, 32'h0000_1a00,
+                    "flush does not discard BTB update");
 
         $display("--------------------------------------------------");
         $display("DBP_7STG_TB SUMMARY: PASS=%0d FAIL=%0d", pass_count, fail_count);

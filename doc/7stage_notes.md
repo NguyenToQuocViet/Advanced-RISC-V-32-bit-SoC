@@ -111,3 +111,21 @@
 - Fetch-path generic và ASAP7: `23 PASS | 0 FAIL`; gồm committed low/high SRAM hits sau khi refill buffer chuyển sang line khác.
 - SoC RV32UI generic và ASAP7: `38 PASS | 0 FAIL | 0 TIMEOUT`.
 - Vivado 2025.2 generic backend infer `1x RAMB18E2` cho tag và `2x RAMB36E2` cho data, không dùng LUTRAM.
+
+## BTB ASAP7 1RW checkpoint (2026-07-19)
+
+### Decision
+
+- BTB logical `1024x52` được đóng gói vào wrapper `1024x64 1RW`; backend ASAP7 instantiate `srambank_256x4x64_6t122`, 12 bit cao được pad zero.
+- Four-entry flop queue giữ `{index[9:0], tag[19:0], target[31:0]}`; taken update cùng index được coalesce, overflow drop oldest và không stall pipeline.
+- `if1_fire` luôn ưu tiên SRAM read; cycle không có read sẽ drain queue head, hoặc direct-write EX update nếu queue rỗng.
+- Pending entry cùng index shadow SRAM: tag match thì forward target, tag mismatch thì forced miss. Forwarding metadata được latch IF1-to-IF2 nên drain không làm đổi response đang giữ.
+- `btb_valid` chỉ set khi SRAM write commit; flush kill IF2 query nhưng không discard queued update. BHT và public DBP interface không đổi.
+
+### Verification
+
+- DBP directed generic và ASAP7: `40 PASS | 0 FAIL`; gồm collision, coalesce, tag shadow, overflow, drain+enqueue và flush.
+- Fetch-path generic và ASAP7: `23 PASS | 0 FAIL`.
+- SoC RV32UI generic và ASAP7: `38 PASS | 0 FAIL | 0 TIMEOUT`.
+- Vivado 2025.2 infer BTB payload thành `1x RAMB36E1 + 1x RAMB18E1`; 12 padding bit không dùng bị tối ưu.
+- u-BTB được giữ ngoài scope, là bước tối ưu prediction/PPA tiếp theo.
