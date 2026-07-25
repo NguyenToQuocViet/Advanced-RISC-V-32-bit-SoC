@@ -1,14 +1,15 @@
-# Build dispatcher for legacy5, fpga7, and asap7 profiles.
+# Build dispatcher for legacy5, fpga7, asap7, and sky130 profiles.
 
 TARGET      ?= fpga7
 TEST        ?= soc7
 VERILATOR   ?= verilator
 VIVADO      ?= vivado
+LIBRELANE   ?= librelane
 VFLAGS      ?= --binary --timing -Wall -Wno-fatal
 FILELIST     = filelists/$(TARGET).f
 OBJ_DIR      = build/verilator/$(TARGET)/$(TEST)
 
-VALID_TARGETS := legacy5 fpga7 asap7
+VALID_TARGETS := legacy5 fpga7 asap7 sky130
 
 TEST_TOP_dbp_sram  := dbp_7stg_1r1w_sram_tb
 TEST_FILE_dbp_sram := tb/unit/dbp_7stg_1r1w_sram_tb.sv
@@ -49,9 +50,10 @@ PASS_MARKER = $(TEST_PASS_$(TEST))
 REGRESSION_legacy5 := soc5
 REGRESSION_fpga7   := dbp_sram dcache fetch core7 soc7
 REGRESSION_asap7   := dbp_asap7 dcache fetch core7 soc7
+REGRESSION_sky130   := dbp_sram dcache fetch core7 soc7
 REGRESSION_TESTS    = $(REGRESSION_$(TARGET))
 
-.PHONY: all check-target lint test regression regression-all synth clean help
+.PHONY: all check-target lint test regression regression-all synth librelane-config librelane-synth clean help
 
 all: regression
 
@@ -83,18 +85,25 @@ regression-all:
 	done
 
 synth: check-target
-	@if test "$(TARGET)" = "asap7"; then \
-		echo "ASAP7 requires an ASIC synthesis flow; Vivado only supports legacy5/fpga7."; exit 2; \
+	@if test "$(TARGET)" = "asap7" -o "$(TARGET)" = "sky130"; then \
+		echo "ASIC targets require their platform synthesis flow; Vivado only supports legacy5/fpga7."; exit 2; \
 	fi
 	$(VIVADO) -mode batch -source flow/vivado/tcl/synth_filelist.tcl \
 		-tclargs $(TARGET)
+
+librelane-config:
+	python3 flow/librelane/sky130/prepare_config.py
+
+librelane-synth: librelane-config
+	$(LIBRELANE) --dockerized --pdk sky130A --to OpenROAD.CheckMacroInstances build/librelane/sky130/config.json
 
 clean:
 	rm -rf build
 
 help:
-	@echo "make regression [TARGET=legacy5|fpga7|asap7]"
+	@echo "make regression [TARGET=legacy5|fpga7|asap7|sky130]"
 	@echo "make test TARGET=<target> TEST=<test>"
 	@echo "make regression-all"
 	@echo "make lint TARGET=<target>"
 	@echo "make synth TARGET=legacy5|fpga7"
+	@echo "make librelane-synth"
