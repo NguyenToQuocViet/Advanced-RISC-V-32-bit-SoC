@@ -13,7 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // -----------------------------------------------------------------------------
 // Project      : Advanced RISC-V 32-bit Processor
-// Module       : dbp_7stg_fpga
+// Module       : dbp_7stg_1r1w_sram
 // Description  : IF1 query, IF2 prediction response. BTB uses sync SRAM timing;
 //                BHT remains flop-array and is registered to align with BTB.
 //
@@ -22,7 +22,7 @@
 // Version      : 1.0
 // -----------------------------------------------------------------------------
 
-module dbp_7stg_fpga
+module dbp_7stg_1r1w_sram
     import cpu_pkg::*;
 (
     //system interface

@@ -14,46 +14,57 @@
 // -----------------------------------------------------------------------------
 // Project      : Advanced RISC-V 32-bit Processor
 // Module       : sram_1rw
-// Description  : Behavioral single-port SRAM with OpenRAM-compatible interface.
-//                Sync read (dout 1 cycle after addr), sync write (csb=0, web=0).
-//                Swap with OpenRAM-generated macro for ASIC.
+// Description  : Platform selector for masked synchronous 1RW SRAM.
 //
 // Author       : NGUYEN TO QUOC VIET
-// Date         : 2026-04-27
-// Version      : 1.0
+// Date         : 2026-07-23
+// Version      : 2.0
 // -----------------------------------------------------------------------------
 
 module sram_1rw #(
     parameter int ADDR_W  = 8,
     parameter int DATA_W  = 32,
     parameter int DEPTH   = 256,
-    parameter int WMASK_W = DATA_W / 8   //byte-lane write mask
+    parameter int WMASK_W = DATA_W / 8
 )(
-    input  logic                clk,
-    input  logic                csb,        //chip select bar (active-low)
-    input  logic                web,        //write enable bar (active-low)
-    input  logic [WMASK_W-1:0]  wmask,      //write mask (1=write, 0=keep)
-    input  logic [ADDR_W-1:0]   addr,
-    input  logic [DATA_W-1:0]   din,
-    output logic [DATA_W-1:0]   dout
+    input  logic               clk,
+    input  logic               csb,
+    input  logic               web,
+    input  logic [WMASK_W-1:0] wmask,
+    input  logic [ADDR_W-1:0]  addr,
+    input  logic [DATA_W-1:0]  din,
+    output logic [DATA_W-1:0]  dout
 );
-    localparam int BYTE_W = DATA_W / WMASK_W;
+`ifdef TARGET_SKY130
+    sram_1rw_sky130 #(
+        .ADDR_W  (ADDR_W),
+        .DATA_W  (DATA_W),
+        .DEPTH   (DEPTH),
+        .WMASK_W (WMASK_W)
+    ) u_impl (
+        .clk   (clk),
+        .csb   (csb),
+        .web   (web),
+        .wmask (wmask),
+        .addr  (addr),
+        .din   (din),
+        .dout  (dout)
+    );
+`else
+    sram_1rw_fpga #(
+        .ADDR_W  (ADDR_W),
+        .DATA_W  (DATA_W),
+        .DEPTH   (DEPTH),
+        .WMASK_W (WMASK_W)
+    ) u_impl (
+        .clk   (clk),
+        .csb   (csb),
+        .web   (web),
+        .wmask (wmask),
+        .addr  (addr),
+        .din   (din),
+        .dout  (dout)
+    );
+`endif
 
-    //storage
-    logic [DATA_W-1:0] mem [DEPTH];
-
-    //sync read + sync write
-    always_ff @(posedge clk) begin
-        if (!csb) begin
-            if (!web) begin
-                //write with byte-lane mask
-                for (int i = 0; i < WMASK_W; i++) begin
-                    if (wmask[i])
-                        mem[addr][i*BYTE_W +: BYTE_W] <= din[i*BYTE_W +: BYTE_W];
-                end
-            end
-            //read (also on write cycle — read-before-write)
-            dout <= mem[addr];
-        end
-    end
 endmodule

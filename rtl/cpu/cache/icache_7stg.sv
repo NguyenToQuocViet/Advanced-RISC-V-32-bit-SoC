@@ -44,7 +44,7 @@ module icache_7stg
 `ifdef TARGET_ASAP7
     icache_7stg_asap7 u_impl (
 `else
-    icache_7stg_fpga u_impl (
+    icache_7stg_1rw_masked_sram u_impl (
 `endif
         .clk            (clk),
         .rst_n          (rst_n),

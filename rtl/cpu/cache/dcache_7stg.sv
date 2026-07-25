@@ -54,7 +54,7 @@ module dcache_7stg
 `ifdef TARGET_ASAP7
     dcache_7stg_asap7 u_impl (
 `else
-    dcache_7stg_fpga u_impl (
+    dcache_7stg_1rw_masked_sram u_impl (
 `endif
         .clk          (clk),
         .rst_n        (rst_n),

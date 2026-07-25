@@ -42,7 +42,7 @@ module dbp_7stg
 `ifdef TARGET_ASAP7
     dbp_7stg_asap7 u_impl (
 `else
-    dbp_7stg_fpga u_impl (
+    dbp_7stg_1r1w_sram u_impl (
 `endif
         .clk              (clk),
         .rst_n            (rst_n),

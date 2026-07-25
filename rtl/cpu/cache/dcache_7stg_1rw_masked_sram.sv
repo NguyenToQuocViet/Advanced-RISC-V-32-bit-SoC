@@ -13,7 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // -----------------------------------------------------------------------------
 // Project      : Advanced RISC-V 32-bit Processor
-// Module       : dcache_7stg_fpga
+// Module       : dcache_7stg_1rw_masked_sram
 // Description  : 4KB 2-way set-associative D-Cache for 7-stage pipeline.
 //                D-Cache owns SRAM lookup metadata internally, same contract as
 //                I-Cache: request in cycle N, response resolved in cycle N+1.
@@ -28,7 +28,7 @@
 // Changes v2.2 : Snapshot partial forwarding bytes for the full refill lifetime.
 // -----------------------------------------------------------------------------
 
-module dcache_7stg_fpga
+module dcache_7stg_1rw_masked_sram
     import cache_pkg::*;
 (
     //system

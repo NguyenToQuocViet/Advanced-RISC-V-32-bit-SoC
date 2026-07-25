@@ -14,14 +14,11 @@
 // -----------------------------------------------------------------------------
 // Project      : Advanced RISC-V 32-bit Processor
 // Module       : sram_1r1w
-// Description  : Behavioral dual-port (1R1W) SRAM with OpenRAM-compatible interface.
-//                Independent read + write ports, both synchronous.
-//                Used for BTB (read in IF, write in EX, same cycle).
-//                Swap with OpenRAM-generated macro for ASIC.
+// Description  : Platform selector for synchronous 1R1W SRAM.
 //
 // Author       : NGUYEN TO QUOC VIET
-// Date         : 2026-04-27
-// Version      : 1.0
+// Date         : 2026-07-23
+// Version      : 2.0
 // -----------------------------------------------------------------------------
 
 module sram_1r1w #(
@@ -29,31 +26,45 @@ module sram_1r1w #(
     parameter int DATA_W = 52,
     parameter int DEPTH  = 1024
 )(
-    input  logic                clk,
-
-    //read port
-    input  logic                rd_csb,     //read chip select bar (active-low)
-    input  logic [ADDR_W-1:0]   rd_addr,
-    output logic [DATA_W-1:0]   rd_dout,
-
-    //write port
-    input  logic                wr_csb,     //write chip select bar (active-low)
-    input  logic                wr_web,     //write enable bar (active-low)
-    input  logic [ADDR_W-1:0]   wr_addr,
-    input  logic [DATA_W-1:0]   wr_din
+    input  logic              clk,
+    input  logic              rd_csb,
+    input  logic [ADDR_W-1:0] rd_addr,
+    output logic [DATA_W-1:0] rd_dout,
+    input  logic              wr_csb,
+    input  logic              wr_web,
+    input  logic [ADDR_W-1:0] wr_addr,
+    input  logic [DATA_W-1:0] wr_din
 );
-    //storage
-    logic [DATA_W-1:0] mem [DEPTH];
+`ifdef TARGET_SKY130
+    sram_1r1w_sky130 #(
+        .ADDR_W (ADDR_W),
+        .DATA_W (DATA_W),
+        .DEPTH  (DEPTH)
+    ) u_impl (
+        .clk     (clk),
+        .rd_csb  (rd_csb),
+        .rd_addr (rd_addr),
+        .rd_dout (rd_dout),
+        .wr_csb  (wr_csb),
+        .wr_web  (wr_web),
+        .wr_addr (wr_addr),
+        .wr_din  (wr_din)
+    );
+`else
+    sram_1r1w_fpga #(
+        .ADDR_W (ADDR_W),
+        .DATA_W (DATA_W),
+        .DEPTH  (DEPTH)
+    ) u_impl (
+        .clk     (clk),
+        .rd_csb  (rd_csb),
+        .rd_addr (rd_addr),
+        .rd_dout (rd_dout),
+        .wr_csb  (wr_csb),
+        .wr_web  (wr_web),
+        .wr_addr (wr_addr),
+        .wr_din  (wr_din)
+    );
+`endif
 
-    //read port — sync read
-    always_ff @(posedge clk) begin
-        if (!rd_csb)
-            rd_dout <= mem[rd_addr];
-    end
-
-    //write port — sync write
-    always_ff @(posedge clk) begin
-        if (!wr_csb && !wr_web)
-            mem[wr_addr] <= wr_din;
-    end
 endmodule

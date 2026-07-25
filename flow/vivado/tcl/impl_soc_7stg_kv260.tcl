@@ -32,6 +32,8 @@ read_verilog -sv {
 
 # SRAM wrappers
 read_verilog -sv {
+    ../rtl/lib/fpga/sram_1rw_fpga.sv
+    ../rtl/lib/fpga/sram_1r1w_fpga.sv
     ../rtl/lib/sram_1rw.sv
     ../rtl/lib/sram_1r1w.sv
 }
@@ -44,6 +46,7 @@ read_verilog -sv {
     ../rtl/cpu/core/hdu_7stg.sv
     ../rtl/cpu/core/fcu1.sv
     ../rtl/cpu/core/if1_if2_pipeline.sv
+    ../rtl/cpu/core/dbp_7stg_1r1w_sram.sv
     ../rtl/cpu/core/dbp_7stg.sv
     ../rtl/cpu/core/fcu2.sv
     ../rtl/cpu/core/if2_id_pipeline.sv
@@ -66,7 +69,9 @@ read_verilog -sv {
 
 # 7-stage cache subsystem
 read_verilog -sv {
+    ../rtl/cpu/cache/icache_7stg_1rw_masked_sram.sv
     ../rtl/cpu/cache/icache_7stg.sv
+    ../rtl/cpu/cache/dcache_7stg_1rw_masked_sram.sv
     ../rtl/cpu/cache/dcache_7stg.sv
     ../rtl/cpu/cache/write_buffer.sv
     ../rtl/cpu/cache/bus_arbiter.sv

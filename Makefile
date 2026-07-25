@@ -10,9 +10,9 @@ OBJ_DIR      = build/verilator/$(TARGET)/$(TEST)
 
 VALID_TARGETS := legacy5 fpga7 asap7
 
-TEST_TOP_dbp_fpga  := dbp_7stg_fpga_tb
-TEST_FILE_dbp_fpga := tb/unit/dbp_7stg_fpga_tb.sv
-TEST_PASS_dbp_fpga := DBP_7STG_TB PASS
+TEST_TOP_dbp_sram  := dbp_7stg_1r1w_sram_tb
+TEST_FILE_dbp_sram := tb/unit/dbp_7stg_1r1w_sram_tb.sv
+TEST_PASS_dbp_sram := DBP_7STG_TB PASS
 TEST_TOP_dbp_asap7  := dbp_7stg_asap7_tb
 TEST_FILE_dbp_asap7 := tb/unit/dbp_7stg_asap7_tb.sv
 TEST_PASS_dbp_asap7 := DBP_7STG_TB PASS
@@ -47,7 +47,7 @@ TB_EXTRA = $(TEST_EXTRA_$(TEST))
 PASS_MARKER = $(TEST_PASS_$(TEST))
 
 REGRESSION_legacy5 := soc5
-REGRESSION_fpga7   := dbp_fpga dcache fetch core7 soc7
+REGRESSION_fpga7   := dbp_sram dcache fetch core7 soc7
 REGRESSION_asap7   := dbp_asap7 dcache fetch core7 soc7
 REGRESSION_TESTS    = $(REGRESSION_$(TARGET))
 

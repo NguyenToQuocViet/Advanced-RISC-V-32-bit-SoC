@@ -17,6 +17,8 @@ add_files -norecurse rtl/cpu/cache/cache_pkg.sv
 add_files -norecurse rtl/cpu/cache/axi_pkg.sv
 
 # SRAM wrappers
+add_files -norecurse rtl/lib/fpga/sram_1rw_fpga.sv
+add_files -norecurse rtl/lib/fpga/sram_1r1w_fpga.sv
 add_files -norecurse rtl/lib/sram_1rw.sv
 add_files -norecurse rtl/lib/sram_1r1w.sv
 
@@ -27,6 +29,7 @@ add_files -norecurse rtl/cpu/core/mispredict_reg.sv
 add_files -norecurse rtl/cpu/core/hdu_7stg.sv
 add_files -norecurse rtl/cpu/core/fcu1.sv
 add_files -norecurse rtl/cpu/core/if1_if2_pipeline.sv
+add_files -norecurse rtl/cpu/core/dbp_7stg_1r1w_sram.sv
 add_files -norecurse rtl/cpu/core/dbp_7stg.sv
 add_files -norecurse rtl/cpu/core/fcu2.sv
 add_files -norecurse rtl/cpu/core/if2_id_pipeline.sv
@@ -47,7 +50,9 @@ add_files -norecurse rtl/cpu/core/mem2_wb_pipeline.sv
 add_files -norecurse rtl/cpu/core/wb.sv
 
 # Cache subsystem 7-stage
+add_files -norecurse rtl/cpu/cache/icache_7stg_1rw_masked_sram.sv
 add_files -norecurse rtl/cpu/cache/icache_7stg.sv
+add_files -norecurse rtl/cpu/cache/dcache_7stg_1rw_masked_sram.sv
 add_files -norecurse rtl/cpu/cache/dcache_7stg.sv
 add_files -norecurse rtl/cpu/cache/write_buffer.sv
 add_files -norecurse rtl/cpu/cache/bus_arbiter.sv

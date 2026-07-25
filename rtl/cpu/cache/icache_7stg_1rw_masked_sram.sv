@@ -13,7 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // -----------------------------------------------------------------------------
 // Project      : Advanced RISC-V 32-bit Processor
-// Module       : icache_7stg_fpga
+// Module       : icache_7stg_1rw_masked_sram
 // Description  : 4KB direct-mapped I-Cache for 7-stage pipeline.
 //                IF1 launches synchronous SRAM read.
 //                IF2 receives SRAM dout, performs tag compare, and returns instr.
@@ -34,7 +34,7 @@
 //                the same cycle to preserve 1 instr/cycle clean-hit throughput.
 // -----------------------------------------------------------------------------
 
-module icache_7stg_fpga
+module icache_7stg_1rw_masked_sram
     import cache_pkg::*;
 (
     //system
