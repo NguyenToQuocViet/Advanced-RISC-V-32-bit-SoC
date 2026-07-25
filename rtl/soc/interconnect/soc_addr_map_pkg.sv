@@ -22,11 +22,13 @@
 // -----------------------------------------------------------------------------
 
 package soc_addr_map_pkg;
+    //map dimensions
     localparam SOC_ADDR_WIDTH   = 32;
     localparam SOC_NUM_SLAVES   = 4;
     localparam SOC_NUM_REGIONS  = 4;
     localparam SOC_TARGET_WIDTH = 2;
 
+    //target encoding
     typedef enum logic [SOC_TARGET_WIDTH-1:0] {
         TARGET_MEM     = 2'd0,
         TARGET_TINY    = 2'd1,
@@ -34,6 +36,7 @@ package soc_addr_map_pkg;
         TARGET_APB     = 2'd3
     } soc_target_t;
 
+    //region descriptor
     typedef struct packed {
         logic [SOC_ADDR_WIDTH-1:0] base;
         logic [SOC_ADDR_WIDTH-1:0] mask;
@@ -46,6 +49,7 @@ package soc_addr_map_pkg;
         logic allow_burst;
     } soc_region_desc_t;
 
+    //region table
     localparam soc_region_desc_t SOC_REGION_TABLE [SOC_NUM_REGIONS] = '{
         '{base: 32'h0000_0000,
         mask: 32'hFFF0_0000,
