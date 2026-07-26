@@ -20,7 +20,6 @@ report.pdf
 report.tex
 report.synctex.gz
 CLAUDE.md
-AGENTS.md
 obj_dir
 obj_dir*/
 build/
