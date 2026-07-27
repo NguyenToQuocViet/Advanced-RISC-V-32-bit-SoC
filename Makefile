@@ -20,6 +20,10 @@ TEST_PASS_dbp_asap7 := DBP_7STG_TB PASS
 TEST_TOP_dcache  := dcache_7stg_tb
 TEST_FILE_dcache := tb/unit/dcache_7stg_tb.sv
 TEST_PASS_dcache := DCACHE_7STG_TB PASS
+TEST_TOP_axi_default_error   := axi_default_error_tb
+TEST_FILE_axi_default_error  := tb/unit/axi_default_error_tb.sv
+TEST_EXTRA_axi_default_error := rtl/soc/interconnect/axi_default_error.sv
+TEST_PASS_axi_default_error  := SUMMARY | PASS=6 FAIL=0
 TEST_TOP_fetch  := fetch_path_7stg_tb
 TEST_FILE_fetch := tb/integration/fetch_path_7stg_tb.sv
 TEST_PASS_fetch := FETCH_PATH_7STG_TB PASS
