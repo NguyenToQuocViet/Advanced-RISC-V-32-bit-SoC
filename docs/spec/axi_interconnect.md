@@ -102,7 +102,7 @@ Mỗi region được mô tả bằng một record compile-time:
 |---|---:|---|
 | <code>base</code> | 32 | Địa chỉ đầu region |
 | <code>mask</code> | 32 | Mask decode; hit khi <code>(addr & mask) == base</code> |
-| <code>target</code> | TARGET_WIDTH | Downstream slave index |
+| <code>target</code> | SOC_TARGET_WIDTH | Downstream slave index |
 | <code>readable</code> | 1 | Cho phép read |
 | <code>writable</code> | 1 | Cho phép write |
 | <code>executable</code> | 1 | Cho phép instruction fetch |
@@ -110,7 +110,8 @@ Mỗi region được mô tả bằng một record compile-time:
 | <code>device</code> | 1 | Side-effecting MMIO semantics |
 | <code>allow_burst</code> | 1 | Cho phép transaction nhiều beat |
 
-<code>TARGET_WIDTH = max(1, ceil(log2(NUM_SLAVES)))</code>.
+<code>SOC_TARGET_WIDTH</code>, <code>SOC_NUM_SLAVES</code> và <code>SOC_NUM_REGIONS</code>
+thuộc <code>soc_addr_map_pkg</code>; interconnect không có bản parameter độc lập của các giá trị này.
 
 Region size phải là lũy thừa của hai và <code>base</code> phải aligned theo region size. Hai region không được overlap. Một slave có thể sở hữu nhiều region nhưng mỗi address chỉ được hit đúng một region.
 
@@ -120,10 +121,10 @@ Region size phải là lũy thừa của hai và <code>base</code> phải aligne
 
 | Region | Base | Mask | Size | Target | R | W | X | Cacheable | Device | Burst |
 |---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|
-| Shared Memory | 0x0000_0000 | 0xFFFF_0000 | 64 KiB | MEM | 1 | 1 | 1 | 1 | 0 | 1 |
-| TinyTransformer CSR | 0x1000_0000 | 0xFFFF_F000 | 4 KiB | TINY_CSR | 1 | 1 | 0 | 0 | 1 | 0 |
-| ASCON CSR | 0x1000_1000 | 0xFFFF_F000 | 4 KiB | ASCON_CSR | 1 | 1 | 0 | 0 | 1 | 0 |
-| APB subsystem | 0x2000_0000 | 0xFFFF_0000 | 64 KiB | AXI_APB | 1 | 1 | 0 | 0 | 1 | 0 |
+| Shared Memory | 0x0000_0000 | 0xFFF0_0000 | 1 MiB | TARGET_MEM | 1 | 1 | 1 | 1 | 0 | 1 |
+| TinyTransformer CSR | 0x1000_0000 | 0xFFFF_FF00 | 256 B | TARGET_TINY | 1 | 1 | 0 | 0 | 1 | 0 |
+| ASCON CSR | 0x2000_0000 | 0xFFFF_FF00 | 256 B | TARGET_ASCON | 1 | 1 | 0 | 0 | 1 | 0 |
+| APB subsystem | 0x3000_0000 | 0xFFFF_0000 | 64 KiB | TARGET_APB | 1 | 1 | 0 | 0 | 1 | 0 |
 | Default | mọi địa chỉ khác | - | - | Error | 0 | 0 | 0 | 0 | 1 | 0 |
 
 UART, I2C, GPIO hoặc SPI là APB slaves được sub-decode bên trong APB subsystem; chúng không chiếm AXI target riêng. RTL FPGA hiện tại chỉ có BRAM và UART nên chưa hiện thực đầy đủ map này.
@@ -146,22 +147,21 @@ Tên dự kiến: <code>axi_interconnect_1xn</code>.
 
 | Parameter | Giá trị mặc định | Ý nghĩa |
 |---|---:|---|
-| <code>ADDR_WIDTH</code> | 32 | Address width |
 | <code>DATA_WIDTH</code> | 32 | Read/write data width |
-| <code>STRB_WIDTH</code> | DATA_WIDTH / 8 | WSTRB width |
 | <code>ID_WIDTH</code> | 2 | AXI transaction ID width |
-| <code>NUM_SLAVES</code> | 2 | Số downstream slaves thật |
-| <code>NUM_REGIONS</code> | 2 | Số address regions |
-| <code>TARGET_WIDTH</code> | max(1, ceil(log2(NUM_SLAVES))) | Slave selector width |
 
-<code>DATA_WIDTH</code> phải chia hết cho 8. V1 được verify chính thức với 32-bit data; parameterization không đồng nghĩa các width khác đã được chứng minh.
+Address width, slave count, region count và target type lấy từ <code>soc_addr_map_pkg</code> qua
+<code>SOC_ADDR_WIDTH</code>, <code>SOC_NUM_SLAVES</code>, <code>SOC_NUM_REGIONS</code> và
+<code>soc_target_t</code>. <code>STRB_WIDTH = DATA_WIDTH / 8</code>. <code>DATA_WIDTH</code> phải
+chia hết cho 8. V1 được verify chính thức với 32-bit data; parameterization không đồng nghĩa các
+width khác đã được chứng minh.
 
 ### 6.2 Global I/O
 
 | Port | Direction | Width | Ý nghĩa |
 |---|---|---:|---|
 | <code>clk</code> | input | 1 | AXI clock |
-| <code>rst_n</code> | input | 1 | Active-low reset; asynchronous assert, synchronous deassert tại SoC boundary |
+| <code>rst_n</code> | input | 1 | Active-low synchronous reset bên trong interconnect |
 
 ### 6.3 Upstream slave-facing AXI port
 
@@ -223,15 +223,22 @@ Interconnect là slave đối với CPU AXI master, vì vậy prefix canonical l
 
 ### 6.4 Downstream master-facing AXI port arrays
 
-Interconnect là master đối với peripheral slaves. Mỗi signal có thêm chiều <code>[NUM_SLAVES]</code>.
+Interconnect là master đối với peripheral slaves. Mỗi downstream signal là một unpacked array có
+chiều <code>[SOC_NUM_SLAVES-1:0]</code> đặt sau tên signal; mỗi phần tử tương ứng một
+<code>soc_target_t</code>.
 
 | Channel | Output từ interconnect | Input vào interconnect |
 |---|---|---|
-| AR | <code>m_axi_arvalid[N]</code>, <code>arid[N][ID_WIDTH]</code>, <code>araddr[N][32]</code>, <code>arlen[N][8]</code>, <code>arsize[N][3]</code>, <code>arburst[N][2]</code> | <code>m_axi_arready[N]</code> |
-| R | <code>m_axi_rready[N]</code> | <code>m_axi_rvalid[N]</code>, <code>rid[N][ID_WIDTH]</code>, <code>rdata[N][32]</code>, <code>rresp[N][2]</code>, <code>rlast[N]</code> |
-| AW | <code>m_axi_awvalid[N]</code>, <code>awid[N][ID_WIDTH]</code>, <code>awaddr[N][32]</code>, <code>awlen[N][8]</code>, <code>awsize[N][3]</code>, <code>awburst[N][2]</code> | <code>m_axi_awready[N]</code> |
-| W | <code>m_axi_wvalid[N]</code>, <code>wdata[N][32]</code>, <code>wstrb[N][4]</code>, <code>wlast[N]</code> | <code>m_axi_wready[N]</code> |
-| B | <code>m_axi_bready[N]</code> | <code>m_axi_bvalid[N]</code>, <code>bid[N][ID_WIDTH]</code>, <code>bresp[N][2]</code> |
+| AR | <code>m_axi_arvalid[i]</code>, <code>m_axi_arid[i]</code>, <code>m_axi_araddr[i]</code>, <code>m_axi_arlen[i]</code>, <code>m_axi_arsize[i]</code>, <code>m_axi_arburst[i]</code> | <code>m_axi_arready[i]</code> |
+| R | <code>m_axi_rready[i]</code> | <code>m_axi_rvalid[i]</code>, <code>m_axi_rid[i]</code>, <code>m_axi_rdata[i]</code>, <code>m_axi_rresp[i]</code>, <code>m_axi_rlast[i]</code> |
+| AW | <code>m_axi_awvalid[i]</code>, <code>m_axi_awid[i]</code>, <code>m_axi_awaddr[i]</code>, <code>m_axi_awlen[i]</code>, <code>m_axi_awsize[i]</code>, <code>m_axi_awburst[i]</code> | <code>m_axi_awready[i]</code> |
+| W | <code>m_axi_wvalid[i]</code>, <code>m_axi_wdata[i]</code>, <code>m_axi_wstrb[i]</code>, <code>m_axi_wlast[i]</code> | <code>m_axi_wready[i]</code> |
+| B | <code>m_axi_bready[i]</code> | <code>m_axi_bvalid[i]</code>, <code>m_axi_bid[i]</code>, <code>m_axi_bresp[i]</code> |
+
+Ví dụ payload 32-bit được khai báo là
+<code>logic [DATA_WIDTH-1:0] m_axi_rdata [SOC_NUM_SLAVES-1:0]</code>. Canonical Verilator,
+Vivado và LibreLane/Slang flows đều phải preserve representation này tại RTL boundary; synthesized
+netlist có thể flatten array thành một packed vector tương đương.
 
 Chỉ phần tử được selected mới được assert VALID hoặc READY. Mọi phần tử không selected phải nhận VALID/READY bằng 0; payload có thể bằng 0 để giảm switching activity.
 
@@ -250,14 +257,14 @@ Pure combinational decoder, không giữ transaction state.
 | <code>burst_size</code> | input | 3 | AxSIZE |
 | <code>burst_type</code> | input | 2 | AxBURST |
 | <code>hit</code> | output | 1 | Đúng một region hợp lệ |
-| <code>target</code> | output | TARGET_WIDTH | Slave index |
+| <code>target</code> | output | SOC_TARGET_WIDTH | Slave index |
 | <code>cacheable</code> | output | 1 | Cache allocation permitted |
 | <code>device</code> | output | 1 | Device semantics |
 | <code>executable</code> | output | 1 | Instruction fetch permitted |
 | <code>access_ok</code> | output | 1 | Permission và burst policy hợp lệ |
 | <code>decode_error</code> | output | 1 | Unmapped, overlap hoặc access bị từ chối |
 
-Decoder phải tạo internal one-hot <code>region_hit[NUM_REGIONS]</code>. Assertion yêu cầu <code>$onehot0(region_hit)</code>. Overlap là configuration error, không phải runtime priority rule.
+Decoder phải tạo internal one-hot <code>region_hit[SOC_NUM_REGIONS]</code>. Assertion yêu cầu <code>$onehot0(region_hit)</code>. Overlap là configuration error, không phải runtime priority rule.
 
 Cache-side caller cung cấp trực tiếp <code>is_fetch</code>. Trong interconnect, read request có <code>is_fetch=1</code> khi <code>ARID==2'b00</code>; mọi read ID khác và mọi write có <code>is_fetch=0</code>.
 
@@ -265,12 +272,18 @@ Cache-side caller cung cấp trực tiếp <code>is_fetch</code>. Trong intercon
 
 Chức năng:
 
-- Nhận và latch một AR command.
-- Decode và latch <code>rd_target_q</code>.
-- Gửi AR tới đúng slave hoặc chọn internal error responder.
+- Nhận và latch một AR command tại upstream AR handshake.
+- Trong <code>RD_SEND_AR</code>, decode registered command và gửi nó tới đúng real slave hoặc
+  read side của internal error responder.
+- Latch <code>rd_target_q</code> và <code>rd_error_q</code> tại destination AR/request handshake.
 - Route trực tiếp R beats và RID từ selected slave về upstream.
-- Giữ target đến khi upstream consume RLAST.
+- Giữ response source đến khi upstream consume RLAST.
 - Không nhận AR thứ hai trong khi transaction trước chưa hoàn tất.
+- Không chứa RDATA buffer hoặc beat counter; selected real slave hoặc error responder sở hữu RLAST.
+
+Router dùng <code>ID_WIDTH</code> và <code>DATA_WIDTH</code> parameters. Address width, downstream
+array length và target type lấy trực tiếp từ <code>soc_addr_map_pkg</code>. Downstream AR/R ports là
+unpacked arrays có chiều <code>[SOC_NUM_SLAVES-1:0]</code>.
 
 Internal payload widths:
 
@@ -329,18 +342,21 @@ Việc hoàn thành đủ burst khi có error là bắt buộc theo AXI [1].
     s_axi_AR
         │
         ▼
-    AR command register ──► address decoder ──► rd_target_q
-        │                                      │
-        └──────── one-hot AR demux ────────────┘
-                                               ▼
-                                  selected downstream slave
-                                               │
-                                               ▼
-                              N:1 R mux ─────────────► s_axi_R
+    AR command register ──► address decoder ──► one-hot AR/request demux
+                                                   │
+                                   ┌───────────────┴──────────────┐
+                                   ▼                              ▼
+                         selected real slave              default error
+                                   │                              │
+                                   └───────────────┬──────────────┘
+                                                   ▼
+                                      selected-response R mux ──► s_axi_R
 
 - AR payload chỉ được capture một lần tại upstream AR handshake.
 - Payload xuống slave lấy từ register, không lấy trực tiếp từ live upstream bus.
-- R mux select bằng <code>rd_target_q</code>, không decode lại từ address.
+- Decoder output ổn định vì input là registered AR command. Router latch target/error selection khi
+  destination accept command.
+- R mux select bằng <code>{rd_error_q, rd_target_q}</code>, không decode lại từ address.
 - R mux route nguyên tử <code>{RID,RDATA,RRESP,RLAST}</code> từ cùng selected slave.
 
 ### 8.2 Write datapath
@@ -358,7 +374,8 @@ Việc hoàn thành đủ burst khi có error là bắt buộc theo AXI [1].
 
 - Address commands được register trước khi phát xuống slave.
 - R, W và B payload route trực tiếp theo target đã latch; interconnect không chứa response/data FIFO.
-- CPU master giữ <code>RREADY=1</code> trong toàn bộ <code>RD_DATA</code> và <code>BREADY=1</code> trong <code>WR_RESP</code> theo contract hiện tại.
+- CPU <code>bus_arbiter</code> giữ <code>RREADY=1</code> trong toàn bộ state
+  <code>bus_arbiter.RD_DATA</code> và <code>BREADY=1</code> trong <code>WR_RESP</code> theo contract hiện tại.
 - Mỗi source vẫn phải giữ VALID và payload ổn định cho đến handshake.
 
 V1 ưu tiên control đơn giản và không thêm latency data path. Register slice chỉ được thêm sau này nếu post-synthesis timing hoặc một master có backpressure thực sự chứng minh cần thiết.
@@ -369,14 +386,11 @@ V1 ưu tiên control đơn giản và không thêm latency data path. Register s
 
 | Register | Width | Ý nghĩa |
 |---|---:|---|
-| <code>rd_state_q</code> | 2-3 | Read FSM state |
-| <code>rd_target_q</code> | TARGET_WIDTH | Read slave owner |
+| <code>rd_state_q</code> | 2 | Read FSM state |
+| <code>rd_target_q</code> | soc_target_t | Read real-slave owner |
 | <code>rd_error_q</code> | 1 | Read dùng error responder |
-| <code>rd_id_q</code> | ID_WIDTH | Expected RID và error-response ID |
-| <code>rd_len_q</code> | 8 | Read burst length |
-| <code>rd_err_count_q</code> | 8 | Error beats đã sinh |
 | <code>wr_state_q</code> | 3 | Write FSM state |
-| <code>wr_target_q</code> | TARGET_WIDTH | Write slave owner |
+| <code>wr_target_q</code> | soc_target_t | Write real-slave owner |
 | <code>wr_error_q</code> | 1 | Write dùng error responder |
 | <code>wr_id_q</code> | ID_WIDTH | Expected BID và error-response ID |
 | <code>wr_len_q</code> | 8 | Write burst length |
@@ -407,18 +421,19 @@ State transition chỉ dựa vào handshake event, không dựa riêng VALID ho�
 
 | State | Output/Action | Exit condition |
 |---|---|---|
-| <code>RD_IDLE</code> | <code>s_axi_arready=1</code>; mọi downstream ARVALID=0 | <code>s_ar_fire</code>: latch AR và decode |
-| <code>RD_SEND_AR</code> | Assert ARVALID tới <code>rd_target_q</code> bằng registered payload | Selected <code>m_ar_fire</code> |
-| <code>RD_DATA</code> | Route selected R channel trực tiếp về upstream | Upstream <code>s_r_fire && s_axi_rlast</code> |
-| <code>RD_ERROR</code> | Error generator phát DECERR beats với RID đã latch | Upstream consume generated RLAST |
+| <code>RD_IDLE</code> | <code>s_axi_arready=1</code>; mọi destination request VALID=0 | <code>s_ar_fire</code>: latch AR command |
+| <code>RD_SEND_AR</code> | Decode registered command; assert ARVALID tới decoded real slave hoặc request VALID tới error responder | Selected destination handshake; latch target/error selection |
+| <code>RD_FORWARD_R</code> | Route selected real-slave hoặc error-responder R channel về upstream | <code>s_r_fire && s_axi_rlast</code> |
 
 Transitions:
 
-    RD_IDLE --mapped AR--> RD_SEND_AR --downstream AR handshake--> RD_DATA
-       │
-       └----rejected AR-----------------------------------------> RD_ERROR
+    RD_IDLE --upstream AR handshake--> RD_SEND_AR
+        --destination handshake--> RD_FORWARD_R
+        --accepted RLAST---------> RD_IDLE
 
-Read target được latch tại <code>s_ar_fire</code> và chỉ đổi lại sau khi final response đã được upstream consume. Downstream RLAST phải khớp beat <code>ARLEN</code>; mismatch là assertion failure.
+Read target/error selection được latch tại real-slave AR handshake hoặc error-responder request
+handshake và chỉ đổi lại sau khi final response đã được upstream consume. Router không tự đếm beat;
+response source chịu trách nhiệm phát đúng RLAST theo ARLEN đã nhận.
 
 ## 11. Write FSM
 
@@ -495,7 +510,8 @@ CPU hiện chưa có architectural bus-fault exception path. Integration v1 vẫ
 
 ## 14. Reset behavior
 
-- <code>rst_n</code> có thể assert asynchronous nhưng phải deassert synchronous tại SoC reset synchronizer.
+- Interconnect modules sample active-low <code>rst_n</code> synchronously tại cạnh lên của
+  <code>clk</code>; SoC boundary phải cung cấp reset đã được đồng bộ.
 - Tất cả FSM về IDLE.
 - Downstream ARVALID, AWVALID, WVALID bằng 0.
 - Upstream RVALID và BVALID bằng 0.
@@ -507,9 +523,10 @@ CPU hiện chưa có architectural bus-fault exception path. Integration v1 vẫ
 Ví dụ thêm timer:
 
 1. Instantiate <code>axi_timer</code> tại SoC top.
-2. Tăng <code>NUM_SLAVES</code> từ 2 lên 3.
-3. Nối timer vào phần tử <code>m_axi_*[2]</code>.
-4. Thêm region descriptor: base, mask, target 2 và PMA attributes.
+2. Tăng <code>SOC_NUM_SLAVES</code> từ 4 lên 5 và <code>SOC_TARGET_WIDTH</code> từ 2 lên 3 trong
+   <code>soc_addr_map_pkg</code>.
+3. Nối timer vào phần tử <code>m_axi_*[4]</code>.
+4. Thêm <code>soc_target_t</code> encoding và region descriptor: base, mask, target, PMA attributes.
 5. Chạy overlap/elaboration checks.
 6. Chạy interconnect regression với mapped, unmapped và backpressure cases.
 
@@ -565,7 +582,8 @@ Không sửa read/write FSM, response mux source code hoặc thêm một nhánh 
 - Không nhận AW mới khi write transaction active.
 - Mọi accepted R beat có <code>RID==rd_id_q</code>; accepted B có <code>BID==wr_id_q</code>.
 - CPU response mux select bằng latched <code>rd_owner</code>, không bằng live RID.
-- CPU master giữ RREADY trong <code>RD_DATA</code> và BREADY trong <code>WR_RESP</code>.
+- CPU <code>bus_arbiter</code> giữ RREADY trong <code>bus_arbiter.RD_DATA</code> và BREADY trong
+  <code>WR_RESP</code>.
 
 ### 17.3 Directed tests
 
@@ -604,7 +622,7 @@ Không sửa read/write FSM, response mux source code hoặc thêm một nhánh 
 ## 18. Performance, area và ROI
 
 - Hai 32-bit response muxes và one-hot request demux là datapath chính.
-- Decoder cost tăng theo <code>NUM_REGIONS</code>, không theo toàn bộ 32-bit address space.
+- Decoder cost tăng theo <code>SOC_NUM_REGIONS</code>, không theo toàn bộ 32-bit address space.
 - Registered AR/AW command path thêm một cycle; R/W/B data path không thêm latency.
 - Read và write độc lập giữ được concurrency hiện có.
 - Một outstanding mỗi direction phù hợp blocking L1 caches; ID hiện dùng cho ownership, chưa tăng concurrency.
