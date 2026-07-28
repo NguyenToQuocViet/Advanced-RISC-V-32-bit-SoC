@@ -116,15 +116,7 @@ module axi_read_router
         .burst_len    (ar_len_q),
         .burst_size   (ar_size_q),
         .burst_type   (ar_burst_q),
-        .hit          (),
         .target       (decoded_target),
-        .readable     (),
-        .writable     (),
-        .executable   (),
-        .cacheable    (),
-        .device       (),
-        .allow_burst  (),
-        .access_ok    (),
         .decode_error (decode_error)
     );
 

@@ -37,71 +37,36 @@ module soc_addr_decode_tb;
     } input_desc_t;
 
     typedef struct packed {
-        logic        hit;
         soc_target_t target;
-        logic        readable;
-        logic        writable;
-        logic        executable;
-        logic        cacheable;
-        logic        device;
-        logic        allow_burst;
-        logic        access_ok;
         logic        decode_error;
     } output_desc_t;
 
     localparam output_desc_t MEM_PASS = '{
-        hit: 1'b1, target: TARGET_MEM,
-        readable: 1'b1, writable: 1'b1, executable: 1'b1,
-        cacheable: 1'b1, device: 1'b0, allow_burst: 1'b1,
-        access_ok: 1'b1, decode_error: 1'b0
+        target: TARGET_MEM, decode_error: 1'b0
     };
     localparam output_desc_t MEM_REJECT = '{
-        hit: 1'b1, target: TARGET_MEM,
-        readable: 1'b1, writable: 1'b1, executable: 1'b1,
-        cacheable: 1'b1, device: 1'b0, allow_burst: 1'b1,
-        access_ok: 1'b0, decode_error: 1'b1
+        target: TARGET_MEM, decode_error: 1'b1
     };
     localparam output_desc_t TINY_PASS = '{
-        hit: 1'b1, target: TARGET_TINY,
-        readable: 1'b1, writable: 1'b1, executable: 1'b0,
-        cacheable: 1'b0, device: 1'b1, allow_burst: 1'b0,
-        access_ok: 1'b1, decode_error: 1'b0
+        target: TARGET_TINY, decode_error: 1'b0
     };
     localparam output_desc_t TINY_REJECT = '{
-        hit: 1'b1, target: TARGET_TINY,
-        readable: 1'b1, writable: 1'b1, executable: 1'b0,
-        cacheable: 1'b0, device: 1'b1, allow_burst: 1'b0,
-        access_ok: 1'b0, decode_error: 1'b1
+        target: TARGET_TINY, decode_error: 1'b1
     };
     localparam output_desc_t ASCON_PASS = '{
-        hit: 1'b1, target: TARGET_ASCON,
-        readable: 1'b1, writable: 1'b1, executable: 1'b0,
-        cacheable: 1'b0, device: 1'b1, allow_burst: 1'b0,
-        access_ok: 1'b1, decode_error: 1'b0
+        target: TARGET_ASCON, decode_error: 1'b0
     };
     localparam output_desc_t ASCON_REJECT = '{
-        hit: 1'b1, target: TARGET_ASCON,
-        readable: 1'b1, writable: 1'b1, executable: 1'b0,
-        cacheable: 1'b0, device: 1'b1, allow_burst: 1'b0,
-        access_ok: 1'b0, decode_error: 1'b1
+        target: TARGET_ASCON, decode_error: 1'b1
     };
     localparam output_desc_t APB_PASS = '{
-        hit: 1'b1, target: TARGET_APB,
-        readable: 1'b1, writable: 1'b1, executable: 1'b0,
-        cacheable: 1'b0, device: 1'b1, allow_burst: 1'b0,
-        access_ok: 1'b1, decode_error: 1'b0
+        target: TARGET_APB, decode_error: 1'b0
     };
     localparam output_desc_t APB_REJECT = '{
-        hit: 1'b1, target: TARGET_APB,
-        readable: 1'b1, writable: 1'b1, executable: 1'b0,
-        cacheable: 1'b0, device: 1'b1, allow_burst: 1'b0,
-        access_ok: 1'b0, decode_error: 1'b1
+        target: TARGET_APB, decode_error: 1'b1
     };
     localparam output_desc_t NO_HIT = '{
-        hit: 1'b0, target: TARGET_MEM,
-        readable: 1'b0, writable: 1'b0, executable: 1'b0,
-        cacheable: 1'b0, device: 1'b0, allow_burst: 1'b0,
-        access_ok: 1'b0, decode_error: 1'b1
+        target: TARGET_MEM, decode_error: 1'b1
     };
 
     //test transaction
@@ -119,15 +84,7 @@ module soc_addr_decode_tb;
         .burst_len    (input_desc.burst_len),
         .burst_size   (input_desc.burst_size),
         .burst_type   (input_desc.burst_type),
-        .hit          (output_desc.hit),
         .target       (output_desc.target),
-        .readable     (output_desc.readable),
-        .writable     (output_desc.writable),
-        .executable   (output_desc.executable),
-        .cacheable    (output_desc.cacheable),
-        .device       (output_desc.device),
-        .allow_burst  (output_desc.allow_burst),
-        .access_ok    (output_desc.access_ok),
         .decode_error (output_desc.decode_error)
     );
 
@@ -139,7 +96,7 @@ module soc_addr_decode_tb;
         if (actual === expected) begin
             pass_count++;
             $display(
-                "PASS | %s | addr=%08h wr=%0b fetch=%0b len=%0d size=%0d burst=%02b | output=%03h",
+                "PASS | %s | addr=%08h wr=%0b fetch=%0b len=%0d size=%0d burst=%02b | output=%0h",
                 test_name,
                 input_desc.addr,
                 input_desc.is_write,
@@ -152,7 +109,7 @@ module soc_addr_decode_tb;
         end else begin
             fail_count++;
             $display(
-                "FAIL | %s | addr=%08h wr=%0b fetch=%0b len=%0d size=%0d burst=%02b | got=%03h expected=%03h",
+                "FAIL | %s | addr=%08h wr=%0b fetch=%0b len=%0d size=%0d burst=%02b | got=%0h expected=%0h",
                 test_name,
                 input_desc.addr,
                 input_desc.is_write,

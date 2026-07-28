@@ -133,6 +133,9 @@ UART, I2C, GPIO hoặc SPI là APB slaves được sub-decode bên trong APB sub
 
 - Cache-side PMA decoder dùng <code>cacheable</code>, <code>device</code> và <code>executable</code>.
 - AXI interconnect dùng <code>target</code>, access permission và <code>allow_burst</code>.
+- Hai consumer dùng chung descriptor table trong <code>soc_addr_map_pkg</code>, không dùng chung
+  public module interface. Cache-side PMA classification và interconnect transaction validation là
+  hai combinational decoder riêng.
 - I-Cache request tới region không executable phải bị reject.
 - D-Cache access tới device region không được lookup, allocate hoặc forward từ write buffer.
 - Device access là blocking và tạo ordering boundary với write buffer.
@@ -256,15 +259,13 @@ Pure combinational decoder, không giữ transaction state.
 | <code>burst_len</code> | input | 8 | AxLEN |
 | <code>burst_size</code> | input | 3 | AxSIZE |
 | <code>burst_type</code> | input | 2 | AxBURST |
-| <code>hit</code> | output | 1 | Đúng một region hợp lệ |
 | <code>target</code> | output | SOC_TARGET_WIDTH | Slave index |
-| <code>cacheable</code> | output | 1 | Cache allocation permitted |
-| <code>device</code> | output | 1 | Device semantics |
-| <code>executable</code> | output | 1 | Instruction fetch permitted |
-| <code>access_ok</code> | output | 1 | Permission và burst policy hợp lệ |
 | <code>decode_error</code> | output | 1 | Unmapped, overlap hoặc access bị từ chối |
 
 Decoder phải tạo internal one-hot <code>region_hit[SOC_NUM_REGIONS]</code>. Assertion yêu cầu <code>$onehot0(region_hit)</code>. Overlap là configuration error, không phải runtime priority rule.
+
+Region hit, permission attributes, burst policy và <code>access_ok</code> là internal policy
+signals. Public interface chỉ expose routing result và tổng hợp error decision.
 
 Cache-side caller cung cấp trực tiếp <code>is_fetch</code>. Trong interconnect, read request có <code>is_fetch=1</code> khi <code>ARID==2'b00</code>; mọi read ID khác và mọi write có <code>is_fetch=0</code>.
 
