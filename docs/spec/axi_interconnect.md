@@ -297,13 +297,33 @@ Internal payload widths:
 
 Chức năng:
 
-- Nhận và latch một AW command.
-- Decode và latch <code>wr_target_q</code>.
-- Gửi AW tới đúng slave.
-- Chỉ enable W path sau AW downstream handshake; không buffer W trong interconnect.
-- Route trực tiếp B response và BID về upstream.
-- Giữ target đến khi upstream consume B.
+- Nhận và latch một AW command tại upstream AW handshake.
+- Trong <code>WR_SEND_AW</code>, decode registered command và gửi nó tới đúng real slave hoặc
+  write side của internal error responder.
+- Latch <code>wr_target_q</code> và <code>wr_error_q</code> tại destination AW/request handshake.
+- Chỉ enable W path từ cycle kế tiếp sau destination AW handshake. V1 không có AW-to-W
+  combinational bypass và không buffer W trong interconnect.
+- Khi W path chưa được enable, giữ <code>s_axi_wready=0</code>. AXI master phải giữ
+  <code>WVALID/WDATA/WSTRB/WLAST</code> ổn định cho đến W handshake.
+- Route trực tiếp từng W beat tới selected real slave hoặc error responder. Vì AXI4 W channel
+  không mang address hoặc ID, mọi beat dùng target đã latch từ AW.
+- Kết thúc W phase chỉ tại accepted WLAST:
+  <code>s_axi_wvalid &amp;&amp; s_axi_wready &amp;&amp; s_axi_wlast</code>.
+- Không chứa W buffer hoặc AWLEN beat counter. V1 tin AXI master đặt WLAST khớp AWLEN và không
+  phát hiện hoặc recovery malformed AWLEN/WLAST traffic.
+- Sau accepted WLAST, route trực tiếp B response và BID từ latched response source về upstream.
+- Giữ target/error ownership đến khi upstream consume B tại
+  <code>s_axi_bvalid &amp;&amp; s_axi_bready</code>.
 - Không nhận AW thứ hai trong khi transaction trước chưa hoàn tất.
+
+Write FSM:
+
+<pre>
+WR_IDLE -&gt; WR_SEND_AW -&gt; WR_FORWARD_W -&gt; WR_FORWARD_B -&gt; WR_IDLE
+</pre>
+
+Router chấp nhận một cycle bubble giữa destination AW handshake và W forwarding để giữ registered
+stage boundary rõ ràng. Không tạo combinational path từ downstream AWREADY sang upstream WREADY.
 
 Internal payload widths:
 
@@ -313,7 +333,9 @@ Internal payload widths:
 | W beat | 37 | data32 + strb4 + last1 |
 | B response | 4 | id2 + resp2 |
 
-AXI cho phép WVALID xuất hiện trước AWVALID. V1 có thể giữ <code>s_axi_wready=0</code> cho đến khi AW đã được interconnect nhận. Điều này hợp lệ vì master phải assert WVALID độc lập với WREADY và giữ payload đến handshake.
+AXI cho phép WVALID xuất hiện trước AWVALID. V1 backpressure W channel cho đến khi AW đã được
+selected destination nhận; master vẫn phải assert WVALID độc lập với WREADY và giữ payload đến
+handshake.
 
 ### 7.4 <code>axi_default_error</code>
 
@@ -390,12 +412,9 @@ V1 ưu tiên control đơn giản và không thêm latency data path. Register s
 | <code>rd_state_q</code> | 2 | Read FSM state |
 | <code>rd_target_q</code> | soc_target_t | Read real-slave owner |
 | <code>rd_error_q</code> | 1 | Read dùng error responder |
-| <code>wr_state_q</code> | 3 | Write FSM state |
+| <code>wr_state_q</code> | 2 | Write FSM state |
 | <code>wr_target_q</code> | soc_target_t | Write real-slave owner |
 | <code>wr_error_q</code> | 1 | Write dùng error responder |
-| <code>wr_id_q</code> | ID_WIDTH | Expected BID và error-response ID |
-| <code>wr_len_q</code> | 8 | Write burst length |
-| <code>wr_beat_count_q</code> | 8 | W beats đã nhận |
 | <code>ar_cmd_q</code> | 47 | Stable AR payload |
 | <code>aw_cmd_q</code> | 47 | Stable AW payload |
 
@@ -440,20 +459,21 @@ response source chịu trách nhiệm phát đúng RLAST theo ARLEN đã nhận.
 
 | State | Output/Action | Exit condition |
 |---|---|---|
-| <code>WR_IDLE</code> | <code>s_axi_awready=1</code>; <code>s_axi_wready=0</code> | <code>s_aw_fire</code>: latch AW và decode |
-| <code>WR_SEND_AW</code> | Assert selected AWVALID; upstream W chưa được accept | Selected <code>m_aw_fire</code> |
-| <code>WR_DATA</code> | Route trực tiếp upstream W tới selected slave | Selected slave nhận expected final W beat |
-| <code>WR_RESP</code> | Route selected B trực tiếp về upstream | <code>s_b_fire</code> |
-| <code>WR_ERROR_DATA</code> | Consume đủ W beats, không phát downstream | Expected final W beat được consume |
-| <code>WR_ERROR_RESP</code> | Assert BVALID với BRESP=DECERR | <code>s_b_fire</code> |
+| <code>WR_IDLE</code> | <code>s_axi_awready=1</code>; <code>s_axi_wready=0</code> | <code>s_aw_fire</code>: latch AW command |
+| <code>WR_SEND_AW</code> | Decode registered command; assert AWVALID tới decoded real slave hoặc request VALID tới error responder; upstream W chưa được accept | Selected destination handshake; latch target/error selection |
+| <code>WR_FORWARD_W</code> | Route trực tiếp upstream W tới latched real slave hoặc error responder | <code>s_w_fire && s_axi_wlast</code> |
+| <code>WR_FORWARD_B</code> | Route selected real-slave hoặc error-responder B về upstream | <code>s_b_fire</code> |
 
 Transitions:
 
-    WR_IDLE --mapped AW--> WR_SEND_AW --> WR_DATA --> WR_RESP --> WR_IDLE
-       │
-       └--rejected AW--> WR_ERROR_DATA --> WR_ERROR_RESP ------> WR_IDLE
+    WR_IDLE --upstream AW handshake--> WR_SEND_AW
+        --destination handshake-----> WR_FORWARD_W
+        --accepted WLAST------------> WR_FORWARD_B
+        --accepted B----------------> WR_IDLE
 
-<code>s_axi_wlast</code> phải assert đúng beat <code>AWLEN</code>. RTL giữ beat counter để assertion kiểm tra contract. Với compliant master, WLAST và expected final beat luôn trùng nhau.
+Write target/error selection được latch tại real-slave AW handshake hoặc error-responder request
+handshake và giữ đến upstream B handshake. Router không tự đếm W beat; V1 yêu cầu compliant master
+assert <code>WLAST</code> đúng theo <code>AWLEN</code>.
 
 ## 12. Burst policy
 
@@ -482,7 +502,10 @@ Một request được route chỉ khi:
 
 Burst gửi tới TinyTransformer CSR, ASCON CSR hoặc APB subsystem phải được chuyển tới default error responder và hoàn tất bằng <code>DECERR</code>. Interconnect không được split burst thành nhiều single-beat device accesses vì việc đó có thể lặp side effect.
 
-Master protocol violation phải được bắt bằng assertions. Defensive hardware có thể chuyển request bị từ chối sang error responder, nhưng không được sửa âm thầm address, length, size hoặc WLAST.
+Address, permission và burst-policy violation do interconnect kiểm tra được chuyển sang error
+responder. V1 không chứa protocol checker hoặc recovery cho malformed master traffic như
+<code>WLAST</code> không khớp <code>AWLEN</code>; directed testbench chịu trách nhiệm kiểm tra
+contract mà router đã nhận. Interconnect không được sửa âm thầm address, length, size hoặc WLAST.
 
 ### 12.3 MMIO ordering
 
@@ -561,7 +584,7 @@ Không sửa read/write FSM, response mux source code hoặc thêm một nhánh 
 
 ## 17. Verification specification
 
-### 17.1 Structural assertions
+### 17.1 Structural checks
 
 - <code>$onehot0(region_hit)</code>.
 - <code>$onehot0(m_axi_arvalid)</code>.
@@ -572,12 +595,12 @@ Không sửa read/write FSM, response mux source code hoặc thêm một nhánh 
 - Không output VALID nào assert trong reset.
 - Region base aligned và region pairs không overlap.
 
-### 17.2 Handshake assertions
+### 17.2 Handshake checks
 
 - Payload stable khi VALID và không READY cho cả năm channels.
 - AR/AW target stable suốt transaction.
-- RLAST chỉ trên expected final read beat.
-- WLAST đúng expected final write beat.
+- RLAST từ selected response source điều khiển kết thúc read transaction.
+- Chỉ accepted WLAST được phép chuyển write router sang B phase.
 - BVALID chỉ sau downstream AW handshake và accepted WLAST.
 - Không nhận AR mới khi read transaction active.
 - Không nhận AW mới khi write transaction active.
@@ -607,13 +630,13 @@ Không sửa read/write FSM, response mux source code hoặc thêm một nhánh 
 17. MMIO store chờ normal write-buffer entries cũ, rồi chỉ complete sau B response.
 18. MMIO load không được vượt qua pending write-buffer store.
 19. Khi I-Cache và D-Cache cùng request tại read IDLE, D-Cache được grant; I-Cache được phục vụ sau D-Cache RLAST.
-20. Wrong RID/BID gây assertion failure và không được dùng để thay đổi response destination.
+20. Wrong RID/BID phải bị checker phát hiện và không được dùng để thay đổi response destination.
 
 ### 17.4 Definition of done
 
 - Verilator lint không có combinational-loop hoặc latch warning mới.
 - Directed interconnect tests pass ở mọi slave count được support.
-- Assertions không fail trong randomized backpressure test.
+- Handshake và ownership checkers không fail trong randomized backpressure test.
 - Existing FPGA7 và ASAP7 regressions giữ nguyên kết quả.
 - UART software demo vẫn hoạt động.
 - Uncacheable load dùng <code>ARLEN=0</code>, không còn cache-line burst.
