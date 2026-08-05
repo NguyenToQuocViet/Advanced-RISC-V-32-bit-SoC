@@ -54,26 +54,26 @@ module axi_write_router
     output logic [1:0]                   s_axi_bresp,
 
     //downstream AXI write address channels
-    output logic                         m_axi_awvalid [SOC_NUM_SLAVES-1:0],
-    input  logic                         m_axi_awready [SOC_NUM_SLAVES-1:0],
-    output logic [ID_WIDTH-1:0]          m_axi_awid    [SOC_NUM_SLAVES-1:0],
-    output logic [SOC_ADDR_WIDTH-1:0]    m_axi_awaddr  [SOC_NUM_SLAVES-1:0],
-    output logic [7:0]                   m_axi_awlen   [SOC_NUM_SLAVES-1:0],
-    output logic [2:0]                   m_axi_awsize  [SOC_NUM_SLAVES-1:0],
-    output logic [1:0]                   m_axi_awburst [SOC_NUM_SLAVES-1:0],
+    output logic [SOC_NUM_SLAVES-1:0]                     m_axi_awvalid,
+    input  logic [SOC_NUM_SLAVES-1:0]                     m_axi_awready,
+    output logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0]       m_axi_awid,
+    output logic [SOC_NUM_SLAVES-1:0][SOC_ADDR_WIDTH-1:0] m_axi_awaddr,
+    output logic [SOC_NUM_SLAVES-1:0][7:0]                m_axi_awlen,
+    output logic [SOC_NUM_SLAVES-1:0][2:0]                m_axi_awsize,
+    output logic [SOC_NUM_SLAVES-1:0][1:0]                m_axi_awburst,
 
     //downstream AXI write data channels
-    output logic                         m_axi_wvalid [SOC_NUM_SLAVES-1:0],
-    input  logic                         m_axi_wready [SOC_NUM_SLAVES-1:0],
-    output logic [DATA_WIDTH-1:0]        m_axi_wdata  [SOC_NUM_SLAVES-1:0],
-    output logic [(DATA_WIDTH/8)-1:0]    m_axi_wstrb  [SOC_NUM_SLAVES-1:0],
-    output logic                         m_axi_wlast  [SOC_NUM_SLAVES-1:0],
+    output logic [SOC_NUM_SLAVES-1:0]                     m_axi_wvalid,
+    input  logic [SOC_NUM_SLAVES-1:0]                     m_axi_wready,
+    output logic [SOC_NUM_SLAVES-1:0][DATA_WIDTH-1:0]     m_axi_wdata,
+    output logic [SOC_NUM_SLAVES-1:0][(DATA_WIDTH/8)-1:0] m_axi_wstrb,
+    output logic [SOC_NUM_SLAVES-1:0]                     m_axi_wlast,
 
     //downstream AXI write response channels
-    input  logic                         m_axi_bvalid [SOC_NUM_SLAVES-1:0],
-    output logic                         m_axi_bready [SOC_NUM_SLAVES-1:0],
-    input  logic [ID_WIDTH-1:0]          m_axi_bid    [SOC_NUM_SLAVES-1:0],
-    input  logic [1:0]                   m_axi_bresp  [SOC_NUM_SLAVES-1:0],
+    input  logic [SOC_NUM_SLAVES-1:0]               m_axi_bvalid,
+    output logic [SOC_NUM_SLAVES-1:0]               m_axi_bready,
+    input  logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0] m_axi_bid,
+    input  logic [SOC_NUM_SLAVES-1:0][1:0]          m_axi_bresp,
 
     //internal default-error write request
     output logic                         err_wr_req_valid,

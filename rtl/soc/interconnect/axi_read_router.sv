@@ -49,21 +49,21 @@ module axi_read_router
     output logic                         s_axi_rlast,
 
     //downstream AXI read address channels
-    output logic                         m_axi_arvalid [SOC_NUM_SLAVES-1:0],
-    input  logic                         m_axi_arready [SOC_NUM_SLAVES-1:0],
-    output logic [ID_WIDTH-1:0]          m_axi_arid    [SOC_NUM_SLAVES-1:0],
-    output logic [SOC_ADDR_WIDTH-1:0]    m_axi_araddr  [SOC_NUM_SLAVES-1:0],
-    output logic [7:0]                   m_axi_arlen   [SOC_NUM_SLAVES-1:0],
-    output logic [2:0]                   m_axi_arsize  [SOC_NUM_SLAVES-1:0],
-    output logic [1:0]                   m_axi_arburst [SOC_NUM_SLAVES-1:0],
+    output logic [SOC_NUM_SLAVES-1:0]                     m_axi_arvalid,
+    input  logic [SOC_NUM_SLAVES-1:0]                     m_axi_arready,
+    output logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0]       m_axi_arid,
+    output logic [SOC_NUM_SLAVES-1:0][SOC_ADDR_WIDTH-1:0] m_axi_araddr,
+    output logic [SOC_NUM_SLAVES-1:0][7:0]                m_axi_arlen,
+    output logic [SOC_NUM_SLAVES-1:0][2:0]                m_axi_arsize,
+    output logic [SOC_NUM_SLAVES-1:0][1:0]                m_axi_arburst,
 
     //downstream AXI read response channels
-    input  logic                         m_axi_rvalid [SOC_NUM_SLAVES-1:0],
-    output logic                         m_axi_rready [SOC_NUM_SLAVES-1:0],
-    input  logic [ID_WIDTH-1:0]          m_axi_rid    [SOC_NUM_SLAVES-1:0],
-    input  logic [DATA_WIDTH-1:0]        m_axi_rdata  [SOC_NUM_SLAVES-1:0],
-    input  logic [1:0]                   m_axi_rresp  [SOC_NUM_SLAVES-1:0],
-    input  logic                         m_axi_rlast  [SOC_NUM_SLAVES-1:0],
+    input  logic [SOC_NUM_SLAVES-1:0]                  m_axi_rvalid,
+    output logic [SOC_NUM_SLAVES-1:0]                  m_axi_rready,
+    input  logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0]    m_axi_rid,
+    input  logic [SOC_NUM_SLAVES-1:0][DATA_WIDTH-1:0]  m_axi_rdata,
+    input  logic [SOC_NUM_SLAVES-1:0][1:0]             m_axi_rresp,
+    input  logic [SOC_NUM_SLAVES-1:0]                  m_axi_rlast,
 
     //internal default-error read request
     output logic                         err_rd_req_valid,

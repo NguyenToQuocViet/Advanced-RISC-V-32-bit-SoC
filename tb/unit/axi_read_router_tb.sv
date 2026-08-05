@@ -63,20 +63,20 @@ module axi_read_router_tb;
     logic [1:0]                   s_axi_rresp;
     logic                         s_axi_rlast;
 
-    logic                         m_axi_arvalid [SOC_NUM_SLAVES-1:0];
-    logic                         m_axi_arready [SOC_NUM_SLAVES-1:0];
-    logic [ID_WIDTH-1:0]          m_axi_arid    [SOC_NUM_SLAVES-1:0];
-    logic [SOC_ADDR_WIDTH-1:0]    m_axi_araddr  [SOC_NUM_SLAVES-1:0];
-    logic [7:0]                   m_axi_arlen   [SOC_NUM_SLAVES-1:0];
-    logic [2:0]                   m_axi_arsize  [SOC_NUM_SLAVES-1:0];
-    logic [1:0]                   m_axi_arburst [SOC_NUM_SLAVES-1:0];
+    logic [SOC_NUM_SLAVES-1:0]                     m_axi_arvalid;
+    logic [SOC_NUM_SLAVES-1:0]                     m_axi_arready;
+    logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0]       m_axi_arid;
+    logic [SOC_NUM_SLAVES-1:0][SOC_ADDR_WIDTH-1:0] m_axi_araddr;
+    logic [SOC_NUM_SLAVES-1:0][7:0]                m_axi_arlen;
+    logic [SOC_NUM_SLAVES-1:0][2:0]                m_axi_arsize;
+    logic [SOC_NUM_SLAVES-1:0][1:0]                m_axi_arburst;
 
-    logic                         m_axi_rvalid [SOC_NUM_SLAVES-1:0];
-    logic                         m_axi_rready [SOC_NUM_SLAVES-1:0];
-    logic [ID_WIDTH-1:0]          m_axi_rid    [SOC_NUM_SLAVES-1:0];
-    logic [DATA_WIDTH-1:0]        m_axi_rdata  [SOC_NUM_SLAVES-1:0];
-    logic [1:0]                   m_axi_rresp  [SOC_NUM_SLAVES-1:0];
-    logic                         m_axi_rlast  [SOC_NUM_SLAVES-1:0];
+    logic [SOC_NUM_SLAVES-1:0]                 m_axi_rvalid;
+    logic [SOC_NUM_SLAVES-1:0]                 m_axi_rready;
+    logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0]   m_axi_rid;
+    logic [SOC_NUM_SLAVES-1:0][DATA_WIDTH-1:0] m_axi_rdata;
+    logic [SOC_NUM_SLAVES-1:0][1:0]            m_axi_rresp;
+    logic [SOC_NUM_SLAVES-1:0]                 m_axi_rlast;
 
     logic                         err_rd_req_valid;
     logic                         err_rd_req_ready;
@@ -91,6 +91,7 @@ module axi_read_router_tb;
 
     int pass_count;
     int fail_count;
+    bit case_ok;
 
     axi_read_router #(
         .ID_WIDTH   (ID_WIDTH),
@@ -140,8 +141,7 @@ module axi_read_router_tb;
     task automatic check_condition(
         input string test_name,
         input logic  condition,
-        input string detail,
-        inout bit    case_ok
+        input string detail
     );
         if (condition !== 1'b1) begin
             if (case_ok)
@@ -197,21 +197,20 @@ module axi_read_router_tb;
         endcase
     endtask
 
-    task automatic check_idle(input string test_name, inout bit case_ok);
-        check_condition(test_name, s_axi_arready === 1'b1, "ARREADY low in IDLE", case_ok);
-        check_condition(test_name, s_axi_rvalid === 1'b0, "RVALID high in IDLE", case_ok);
+    task automatic check_idle(input string test_name);
+        check_condition(test_name, s_axi_arready === 1'b1, "ARREADY low in IDLE");
+        check_condition(test_name, s_axi_rvalid === 1'b0, "RVALID high in IDLE");
     endtask
 
     task automatic send_upstream_ar(
         input string   test_name,
-        input ar_cmd_t cmd,
-        inout bit      case_ok
+        input ar_cmd_t cmd
     );
         @(negedge clk);
         s_axi_arvalid = 1'b1;
         {s_axi_arid, s_axi_araddr, s_axi_arlen, s_axi_arsize, s_axi_arburst} = cmd;
         #1;
-        check_condition(test_name, s_axi_arready === 1'b1, "upstream AR not accepted", case_ok);
+        check_condition(test_name, s_axi_arready === 1'b1, "upstream AR not accepted");
 
         @(posedge clk);
         #1 s_axi_arvalid = 1'b0;
@@ -220,44 +219,40 @@ module axi_read_router_tb;
     task automatic check_selected_ar(
         input string       test_name,
         input soc_target_t target,
-        input ar_cmd_t     cmd,
-        inout bit          case_ok
+        input ar_cmd_t     cmd
     );
         for (int i = 0; i < SOC_NUM_SLAVES; i++) begin
             check_condition(
                 test_name,
                 m_axi_arvalid[i] === (i == target),
-                $sformatf("ARVALID[%0d] selected incorrectly", i),
-                case_ok
+                $sformatf("ARVALID[%0d] selected incorrectly", i)
             );
         end
         check_condition(
             test_name,
             {m_axi_arid[target], m_axi_araddr[target], m_axi_arlen[target],
              m_axi_arsize[target], m_axi_arburst[target]} === cmd,
-            "selected AR payload changed",
-            case_ok
+            "selected AR payload changed"
         );
-        check_condition(test_name, err_rd_req_valid === 1'b0, "error path selected for legal AR", case_ok);
+        check_condition(test_name, err_rd_req_valid === 1'b0, "error path selected for legal AR");
     endtask
 
     task automatic start_real_read(
         input string       test_name,
         input soc_target_t target,
         input ar_cmd_t     cmd,
-        input int          stall_cycles,
-        inout bit          case_ok
+        input int          stall_cycles
     );
         if (stall_cycles == 0)
             set_arready(target, 1'b1);
 
-        send_upstream_ar(test_name, cmd, case_ok);
+        send_upstream_ar(test_name, cmd);
 
         repeat (stall_cycles) begin
             @(negedge clk);
             #1;
-            check_selected_ar(test_name, target, cmd, case_ok);
-            check_condition(test_name, s_axi_arready === 1'b0, "accepted second AR while busy", case_ok);
+            check_selected_ar(test_name, target, cmd);
+            check_condition(test_name, s_axi_arready === 1'b0, "accepted second AR while busy");
             @(posedge clk);
             #1;
         end
@@ -266,7 +261,7 @@ module axi_read_router_tb;
             set_arready(target, 1'b1);
 
         @(negedge clk);
-        #1 check_selected_ar(test_name, target, cmd, case_ok);
+        #1 check_selected_ar(test_name, target, cmd);
         @(posedge clk);
         #1 set_arready(target, 1'b0);
     endtask
@@ -275,27 +270,24 @@ module axi_read_router_tb;
         input string       test_name,
         input soc_target_t target,
         input r_beat_t     beat,
-        input logic        ready,
-        inout bit          case_ok
+        input logic        ready
     );
         set_rbeat(target, 1'b1, beat);
         s_axi_rready = ready;
 
         @(negedge clk);
         #1;
-        check_condition(test_name, s_axi_rvalid === 1'b1, "selected RVALID not forwarded", case_ok);
+        check_condition(test_name, s_axi_rvalid === 1'b1, "selected RVALID not forwarded");
         check_condition(
             test_name,
             {s_axi_rid, s_axi_rdata, s_axi_rresp, s_axi_rlast} === beat,
-            "selected R payload changed",
-            case_ok
+            "selected R payload changed"
         );
         for (int i = 0; i < SOC_NUM_SLAVES; i++) begin
             check_condition(
                 test_name,
                 m_axi_rready[i] === ((i == target) && ready),
-                $sformatf("RREADY[%0d] routed incorrectly", i),
-                case_ok
+                $sformatf("RREADY[%0d] routed incorrectly", i)
             );
         end
 
@@ -310,35 +302,32 @@ module axi_read_router_tb;
         input string       test_name,
         input soc_target_t target,
         input ar_cmd_t     cmd,
-        input logic [31:0] data,
-        inout bit          case_ok
+        input logic [31:0] data
     );
         r_beat_t beat;
         beat = '{id: cmd.id, data: data, resp: AXI_RESP_OKAY, last: 1'b1};
-        start_real_read(test_name, target, cmd, 0, case_ok);
-        send_real_beat(test_name, target, beat, 1'b1, case_ok);
-        check_idle(test_name, case_ok);
+        start_real_read(test_name, target, cmd, 0);
+        send_real_beat(test_name, target, beat, 1'b1);
+        check_idle(test_name);
     endtask
 
     task automatic run_error_read(
         input string   test_name,
-        input ar_cmd_t cmd,
-        inout bit      case_ok
+        input ar_cmd_t cmd
     );
         err_rd_req_ready = 1'b1;
-        send_upstream_ar(test_name, cmd, case_ok);
+        send_upstream_ar(test_name, cmd);
 
         @(negedge clk);
         #1;
-        check_condition(test_name, err_rd_req_valid === 1'b1, "error request not selected", case_ok);
+        check_condition(test_name, err_rd_req_valid === 1'b1, "error request not selected");
         check_condition(
             test_name,
             {err_rd_req_id, err_rd_req_len} === {cmd.id, cmd.len},
-            "error request metadata changed",
-            case_ok
+            "error request metadata changed"
         );
         for (int i = 0; i < SOC_NUM_SLAVES; i++)
-            check_condition(test_name, m_axi_arvalid[i] === 1'b0, "real slave selected on error", case_ok);
+            check_condition(test_name, m_axi_arvalid[i] === 1'b0, "real slave selected on error");
 
         @(posedge clk);
         #1 err_rd_req_ready = 1'b0;
@@ -352,28 +341,25 @@ module axi_read_router_tb;
 
         @(negedge clk);
         #1;
-        check_condition(test_name, s_axi_rvalid === 1'b1, "error RVALID not forwarded", case_ok);
+        check_condition(test_name, s_axi_rvalid === 1'b1, "error RVALID not forwarded");
         check_condition(
             test_name,
             {s_axi_rid, s_axi_rdata, s_axi_rresp, s_axi_rlast}
                 === {cmd.id, 32'b0, AXI_RESP_DECERR, 1'b1},
-            "error response changed",
-            case_ok
+            "error response changed"
         );
-        check_condition(test_name, err_rd_resp_ready === 1'b1, "error RREADY not forwarded", case_ok);
+        check_condition(test_name, err_rd_resp_ready === 1'b1, "error RREADY not forwarded");
 
         @(posedge clk);
         #1;
         err_rd_resp_valid = 1'b0;
         s_axi_rready      = 1'b0;
-        check_idle(test_name, case_ok);
+        check_idle(test_name);
     endtask
 
     initial begin
         ar_cmd_t cmd;
         r_beat_t beat;
-        bit      case_ok;
-
         pass_count = 0;
         fail_count = 0;
         rst_n      = 1'b1;
@@ -382,69 +368,69 @@ module axi_read_router_tb;
         //1. Every legal region routes to exactly one real slave.
         case_ok = 1'b1;
         run_single_real("READ_ROUTE_ALL_TARGETS", TARGET_MEM,
-            '{2'd1, 32'h0000_0100, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, 32'h1000_0001, case_ok);
+            '{2'd1, 32'h0000_0100, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, 32'h1000_0001);
         run_single_real("READ_ROUTE_ALL_TARGETS", TARGET_TINY,
-            '{2'd1, 32'h1000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, 32'h1000_0002, case_ok);
+            '{2'd1, 32'h1000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, 32'h1000_0002);
         run_single_real("READ_ROUTE_ALL_TARGETS", TARGET_ASCON,
-            '{2'd2, 32'h2000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, 32'h1000_0003, case_ok);
+            '{2'd2, 32'h2000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, 32'h1000_0003);
         run_single_real("READ_ROUTE_ALL_TARGETS", TARGET_APB,
-            '{2'd3, 32'h3000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, 32'h1000_0004, case_ok);
+            '{2'd3, 32'h3000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, 32'h1000_0004);
         finish_case("READ_ROUTE_ALL_TARGETS", case_ok);
         finish_case("READ_TARGET_SWITCH", case_ok);
 
         //2. AR payload remains stable while selected slave stalls.
         case_ok = 1'b1;
         cmd = '{2'd2, 32'h2000_0010, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR};
-        start_real_read("READ_AR_BACKPRESSURE", TARGET_ASCON, cmd, 2, case_ok);
+        start_real_read("READ_AR_BACKPRESSURE", TARGET_ASCON, cmd, 2);
         beat = '{cmd.id, 32'hA5A5_0001, AXI_RESP_OKAY, 1'b1};
-        send_real_beat("READ_AR_BACKPRESSURE", TARGET_ASCON, beat, 1'b1, case_ok);
-        check_idle("READ_AR_BACKPRESSURE", case_ok);
+        send_real_beat("READ_AR_BACKPRESSURE", TARGET_ASCON, beat, 1'b1);
+        check_idle("READ_AR_BACKPRESSURE");
         finish_case("READ_AR_BACKPRESSURE", case_ok);
 
         //3. Target ownership remains locked through every R beat.
         case_ok = 1'b1;
         cmd = '{2'd1, 32'h0000_0200, 8'd2, AXI_SIZE_4B, AXI_BURST_INCR};
-        start_real_read("READ_BURST", TARGET_MEM, cmd, 0, case_ok);
+        start_real_read("READ_BURST", TARGET_MEM, cmd, 0);
         send_real_beat("READ_BURST", TARGET_MEM,
-            '{cmd.id, 32'hB000_0000, AXI_RESP_OKAY, 1'b0}, 1'b1, case_ok);
+            '{cmd.id, 32'hB000_0000, AXI_RESP_OKAY, 1'b0}, 1'b1);
         send_real_beat("READ_BURST", TARGET_MEM,
-            '{cmd.id, 32'hB000_0001, AXI_RESP_OKAY, 1'b0}, 1'b1, case_ok);
+            '{cmd.id, 32'hB000_0001, AXI_RESP_OKAY, 1'b0}, 1'b1);
         send_real_beat("READ_BURST", TARGET_MEM,
-            '{cmd.id, 32'hB000_0002, AXI_RESP_OKAY, 1'b1}, 1'b1, case_ok);
-        check_idle("READ_BURST", case_ok);
+            '{cmd.id, 32'hB000_0002, AXI_RESP_OKAY, 1'b1}, 1'b1);
+        check_idle("READ_BURST");
         finish_case("READ_BURST", case_ok);
 
         //4. Non-final R beat remains selected while upstream stalls.
         case_ok = 1'b1;
         cmd = '{2'd3, 32'h0000_0300, 8'd1, AXI_SIZE_4B, AXI_BURST_INCR};
-        start_real_read("READ_R_BACKPRESSURE", TARGET_MEM, cmd, 0, case_ok);
+        start_real_read("READ_R_BACKPRESSURE", TARGET_MEM, cmd, 0);
         beat = '{cmd.id, 32'hC0DE_0001, AXI_RESP_OKAY, 1'b0};
-        send_real_beat("READ_R_BACKPRESSURE", TARGET_MEM, beat, 1'b0, case_ok);
-        send_real_beat("READ_R_BACKPRESSURE", TARGET_MEM, beat, 1'b0, case_ok);
-        send_real_beat("READ_R_BACKPRESSURE", TARGET_MEM, beat, 1'b1, case_ok);
+        send_real_beat("READ_R_BACKPRESSURE", TARGET_MEM, beat, 1'b0);
+        send_real_beat("READ_R_BACKPRESSURE", TARGET_MEM, beat, 1'b0);
+        send_real_beat("READ_R_BACKPRESSURE", TARGET_MEM, beat, 1'b1);
         send_real_beat("READ_R_BACKPRESSURE", TARGET_MEM,
-            '{cmd.id, 32'hC0DE_0002, AXI_RESP_OKAY, 1'b1}, 1'b1, case_ok);
-        check_idle("READ_R_BACKPRESSURE", case_ok);
+            '{cmd.id, 32'hC0DE_0002, AXI_RESP_OKAY, 1'b1}, 1'b1);
+        check_idle("READ_R_BACKPRESSURE");
         finish_case("READ_R_BACKPRESSURE", case_ok);
 
         //5. RLAST without RREADY does not complete the transaction.
         case_ok = 1'b1;
         cmd = '{2'd1, 32'h1000_0020, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR};
-        start_real_read("READ_LAST_STALLED", TARGET_TINY, cmd, 0, case_ok);
+        start_real_read("READ_LAST_STALLED", TARGET_TINY, cmd, 0);
         beat = '{cmd.id, 32'h1A57_0001, AXI_RESP_OKAY, 1'b1};
-        send_real_beat("READ_LAST_STALLED", TARGET_TINY, beat, 1'b0, case_ok);
+        send_real_beat("READ_LAST_STALLED", TARGET_TINY, beat, 1'b0);
         check_condition("READ_LAST_STALLED", s_axi_arready === 1'b0,
-            "stalled RLAST completed transaction", case_ok);
-        send_real_beat("READ_LAST_STALLED", TARGET_TINY, beat, 1'b1, case_ok);
-        check_idle("READ_LAST_STALLED", case_ok);
+            "stalled RLAST completed transaction");
+        send_real_beat("READ_LAST_STALLED", TARGET_TINY, beat, 1'b1);
+        check_idle("READ_LAST_STALLED");
         finish_case("READ_LAST_STALLED", case_ok);
 
         //6. Both unmapped and permission-rejected AR use the error path.
         case_ok = 1'b1;
         run_error_read("READ_DECODE_ERROR",
-            '{2'd1, 32'h4000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, case_ok);
+            '{2'd1, 32'h4000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR});
         run_error_read("READ_DECODE_ERROR",
-            '{2'd0, 32'h1000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR}, case_ok);
+            '{2'd0, 32'h1000_0000, 8'd0, AXI_SIZE_4B, AXI_BURST_INCR});
         finish_case("READ_DECODE_ERROR", case_ok);
 
         $display("SUMMARY | PASS=%0d FAIL=%0d", pass_count, fail_count);

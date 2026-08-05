@@ -224,11 +224,12 @@ Interconnect là slave đối với CPU AXI master, vì vậy prefix canonical l
 | <code>s_axi_bid</code> | output | ID_WIDTH | Echo AWID của transaction |
 | <code>s_axi_bresp</code> | output | 2 | Write response |
 
-### 6.4 Downstream master-facing AXI port arrays
+### 6.4 Downstream master-facing AXI packed arrays
 
-Interconnect là master đối với peripheral slaves. Mỗi downstream signal là một unpacked array có
-chiều <code>[SOC_NUM_SLAVES-1:0]</code> đặt sau tên signal; mỗi phần tử tương ứng một
-<code>soc_target_t</code>.
+Interconnect là master đối với peripheral slaves. Mỗi downstream signal là packed array có
+dimension slave đặt trước dimension payload. Vì vậy <code>signal[target]</code> luôn chọn toàn bộ
+payload của đúng một <code>soc_target_t</code>, đồng thời toàn bus vẫn là một packed vector xuyên
+qua <code>axi_interconnect_1xn</code> hierarchy boundary.
 
 | Channel | Output từ interconnect | Input vào interconnect |
 |---|---|---|
@@ -239,9 +240,9 @@ chiều <code>[SOC_NUM_SLAVES-1:0]</code> đặt sau tên signal; mỗi phần t
 | B | <code>m_axi_bready[i]</code> | <code>m_axi_bvalid[i]</code>, <code>m_axi_bid[i]</code>, <code>m_axi_bresp[i]</code> |
 
 Ví dụ payload 32-bit được khai báo là
-<code>logic [DATA_WIDTH-1:0] m_axi_rdata [SOC_NUM_SLAVES-1:0]</code>. Canonical Verilator,
-Vivado và LibreLane/Slang flows đều phải preserve representation này tại RTL boundary; synthesized
-netlist có thể flatten array thành một packed vector tương đương.
+<code>logic [SOC_NUM_SLAVES-1:0][DATA_WIDTH-1:0] m_axi_rdata</code>. Valid/ready/last là packed
+vector một chiều <code>[SOC_NUM_SLAVES-1:0]</code>. Không đặt dimension slave sau tên signal vì
+dạng unpacked array đó đã cho kết quả mô phỏng không nhất quán qua hierarchy boundary.
 
 Chỉ phần tử được selected mới được assert VALID hoặc READY. Mọi phần tử không selected phải nhận VALID/READY bằng 0; payload có thể bằng 0 để giảm switching activity.
 
@@ -283,8 +284,7 @@ Chức năng:
 - Không chứa RDATA buffer hoặc beat counter; selected real slave hoặc error responder sở hữu RLAST.
 
 Router dùng <code>ID_WIDTH</code> và <code>DATA_WIDTH</code> parameters. Address width, downstream
-array length và target type lấy trực tiếp từ <code>soc_addr_map_pkg</code>. Downstream AR/R ports là
-unpacked arrays có chiều <code>[SOC_NUM_SLAVES-1:0]</code>.
+array length và target type lấy trực tiếp từ <code>soc_addr_map_pkg</code>. Downstream AR/R ports là packed arrays với dimension slave đặt trước dimension payload.
 
 Internal payload widths:
 
@@ -549,7 +549,7 @@ Ví dụ thêm timer:
 1. Instantiate <code>axi_timer</code> tại SoC top.
 2. Tăng <code>SOC_NUM_SLAVES</code> từ 4 lên 5 và <code>SOC_TARGET_WIDTH</code> từ 2 lên 3 trong
    <code>soc_addr_map_pkg</code>.
-3. Nối timer vào phần tử <code>m_axi_*[4]</code>.
+3. Nối timer vào phần tử <code>m_axi_*[TARGET_TIMER]</code>.
 4. Thêm <code>soc_target_t</code> encoding và region descriptor: base, mask, target, PMA attributes.
 5. Chạy overlap/elaboration checks.
 6. Chạy interconnect regression với mapped, unmapped và backpressure cases.

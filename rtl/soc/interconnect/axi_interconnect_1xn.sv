@@ -71,43 +71,43 @@ module axi_interconnect_1xn
     output logic [1:0]                   s_axi_bresp,
 
     //downstream AXI read address channels
-    output logic                         m_axi_arvalid [SOC_NUM_SLAVES-1:0],
-    input  logic                         m_axi_arready [SOC_NUM_SLAVES-1:0],
-    output logic [ID_WIDTH-1:0]          m_axi_arid    [SOC_NUM_SLAVES-1:0],
-    output logic [SOC_ADDR_WIDTH-1:0]    m_axi_araddr  [SOC_NUM_SLAVES-1:0],
-    output logic [7:0]                   m_axi_arlen   [SOC_NUM_SLAVES-1:0],
-    output logic [2:0]                   m_axi_arsize  [SOC_NUM_SLAVES-1:0],
-    output logic [1:0]                   m_axi_arburst [SOC_NUM_SLAVES-1:0],
+    output logic [SOC_NUM_SLAVES-1:0]                     m_axi_arvalid,
+    input  logic [SOC_NUM_SLAVES-1:0]                     m_axi_arready,
+    output logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0]       m_axi_arid,
+    output logic [SOC_NUM_SLAVES-1:0][SOC_ADDR_WIDTH-1:0] m_axi_araddr,
+    output logic [SOC_NUM_SLAVES-1:0][7:0]                m_axi_arlen,
+    output logic [SOC_NUM_SLAVES-1:0][2:0]                m_axi_arsize,
+    output logic [SOC_NUM_SLAVES-1:0][1:0]                m_axi_arburst,
 
     //downstream AXI read response channels
-    input  logic                         m_axi_rvalid [SOC_NUM_SLAVES-1:0],
-    output logic                         m_axi_rready [SOC_NUM_SLAVES-1:0],
-    input  logic [ID_WIDTH-1:0]          m_axi_rid    [SOC_NUM_SLAVES-1:0],
-    input  logic [DATA_WIDTH-1:0]        m_axi_rdata  [SOC_NUM_SLAVES-1:0],
-    input  logic [1:0]                   m_axi_rresp  [SOC_NUM_SLAVES-1:0],
-    input  logic                         m_axi_rlast  [SOC_NUM_SLAVES-1:0],
+    input  logic [SOC_NUM_SLAVES-1:0]                 m_axi_rvalid,
+    output logic [SOC_NUM_SLAVES-1:0]                 m_axi_rready,
+    input  logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0]   m_axi_rid,
+    input  logic [SOC_NUM_SLAVES-1:0][DATA_WIDTH-1:0] m_axi_rdata,
+    input  logic [SOC_NUM_SLAVES-1:0][1:0]            m_axi_rresp,
+    input  logic [SOC_NUM_SLAVES-1:0]                 m_axi_rlast,
 
     //downstream AXI write address channels
-    output logic                         m_axi_awvalid [SOC_NUM_SLAVES-1:0],
-    input  logic                         m_axi_awready [SOC_NUM_SLAVES-1:0],
-    output logic [ID_WIDTH-1:0]          m_axi_awid    [SOC_NUM_SLAVES-1:0],
-    output logic [SOC_ADDR_WIDTH-1:0]    m_axi_awaddr  [SOC_NUM_SLAVES-1:0],
-    output logic [7:0]                   m_axi_awlen   [SOC_NUM_SLAVES-1:0],
-    output logic [2:0]                   m_axi_awsize  [SOC_NUM_SLAVES-1:0],
-    output logic [1:0]                   m_axi_awburst [SOC_NUM_SLAVES-1:0],
+    output logic [SOC_NUM_SLAVES-1:0]                     m_axi_awvalid,
+    input  logic [SOC_NUM_SLAVES-1:0]                     m_axi_awready,
+    output logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0]       m_axi_awid,
+    output logic [SOC_NUM_SLAVES-1:0][SOC_ADDR_WIDTH-1:0] m_axi_awaddr,
+    output logic [SOC_NUM_SLAVES-1:0][7:0]                m_axi_awlen,
+    output logic [SOC_NUM_SLAVES-1:0][2:0]                m_axi_awsize,
+    output logic [SOC_NUM_SLAVES-1:0][1:0]                m_axi_awburst,
 
     //downstream AXI write data channels
-    output logic                         m_axi_wvalid [SOC_NUM_SLAVES-1:0],
-    input  logic                         m_axi_wready [SOC_NUM_SLAVES-1:0],
-    output logic [DATA_WIDTH-1:0]        m_axi_wdata  [SOC_NUM_SLAVES-1:0],
-    output logic [(DATA_WIDTH/8)-1:0]    m_axi_wstrb  [SOC_NUM_SLAVES-1:0],
-    output logic                         m_axi_wlast  [SOC_NUM_SLAVES-1:0],
+    output logic [SOC_NUM_SLAVES-1:0]                     m_axi_wvalid,
+    input  logic [SOC_NUM_SLAVES-1:0]                     m_axi_wready,
+    output logic [SOC_NUM_SLAVES-1:0][DATA_WIDTH-1:0]     m_axi_wdata,
+    output logic [SOC_NUM_SLAVES-1:0][(DATA_WIDTH/8)-1:0] m_axi_wstrb,
+    output logic [SOC_NUM_SLAVES-1:0]                     m_axi_wlast,
 
     //downstream AXI write response channels
-    input  logic                         m_axi_bvalid [SOC_NUM_SLAVES-1:0],
-    output logic                         m_axi_bready [SOC_NUM_SLAVES-1:0],
-    input  logic [ID_WIDTH-1:0]          m_axi_bid    [SOC_NUM_SLAVES-1:0],
-    input  logic [1:0]                   m_axi_bresp  [SOC_NUM_SLAVES-1:0]
+    input  logic [SOC_NUM_SLAVES-1:0]               m_axi_bvalid,
+    output logic [SOC_NUM_SLAVES-1:0]               m_axi_bready,
+    input  logic [SOC_NUM_SLAVES-1:0][ID_WIDTH-1:0] m_axi_bid,
+    input  logic [SOC_NUM_SLAVES-1:0][1:0]          m_axi_bresp
 );
     //internal default-error read request
     logic                    err_rd_req_valid;
