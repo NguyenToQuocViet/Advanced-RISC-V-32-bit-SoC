@@ -37,36 +37,60 @@ module soc_addr_decode_tb;
     } input_desc_t;
 
     typedef struct packed {
+        logic        hit;
         soc_target_t target;
+        logic        readable;
+        logic        writable;
+        logic        executable;
+        logic        cacheable;
+        logic        device;
         logic        decode_error;
     } output_desc_t;
 
     localparam output_desc_t MEM_PASS = '{
-        target: TARGET_MEM, decode_error: 1'b0
+        hit: 1'b1, target: TARGET_MEM,
+        readable: 1'b1, writable: 1'b1, executable: 1'b1,
+        cacheable: 1'b1, device: 1'b0, decode_error: 1'b0
     };
     localparam output_desc_t MEM_REJECT = '{
-        target: TARGET_MEM, decode_error: 1'b1
+        hit: 1'b1, target: TARGET_MEM,
+        readable: 1'b1, writable: 1'b1, executable: 1'b1,
+        cacheable: 1'b1, device: 1'b0, decode_error: 1'b1
     };
     localparam output_desc_t TINY_PASS = '{
-        target: TARGET_TINY, decode_error: 1'b0
+        hit: 1'b1, target: TARGET_TINY,
+        readable: 1'b1, writable: 1'b1, executable: 1'b0,
+        cacheable: 1'b0, device: 1'b1, decode_error: 1'b0
     };
     localparam output_desc_t TINY_REJECT = '{
-        target: TARGET_TINY, decode_error: 1'b1
+        hit: 1'b1, target: TARGET_TINY,
+        readable: 1'b1, writable: 1'b1, executable: 1'b0,
+        cacheable: 1'b0, device: 1'b1, decode_error: 1'b1
     };
     localparam output_desc_t ASCON_PASS = '{
-        target: TARGET_ASCON, decode_error: 1'b0
+        hit: 1'b1, target: TARGET_ASCON,
+        readable: 1'b1, writable: 1'b1, executable: 1'b0,
+        cacheable: 1'b0, device: 1'b1, decode_error: 1'b0
     };
     localparam output_desc_t ASCON_REJECT = '{
-        target: TARGET_ASCON, decode_error: 1'b1
+        hit: 1'b1, target: TARGET_ASCON,
+        readable: 1'b1, writable: 1'b1, executable: 1'b0,
+        cacheable: 1'b0, device: 1'b1, decode_error: 1'b1
     };
     localparam output_desc_t APB_PASS = '{
-        target: TARGET_APB, decode_error: 1'b0
+        hit: 1'b1, target: TARGET_APB,
+        readable: 1'b1, writable: 1'b1, executable: 1'b0,
+        cacheable: 1'b0, device: 1'b1, decode_error: 1'b0
     };
     localparam output_desc_t APB_REJECT = '{
-        target: TARGET_APB, decode_error: 1'b1
+        hit: 1'b1, target: TARGET_APB,
+        readable: 1'b1, writable: 1'b1, executable: 1'b0,
+        cacheable: 1'b0, device: 1'b1, decode_error: 1'b1
     };
     localparam output_desc_t NO_HIT = '{
-        target: TARGET_MEM, decode_error: 1'b1
+        hit: 1'b0, target: TARGET_MEM,
+        readable: 1'b0, writable: 1'b0, executable: 1'b0,
+        cacheable: 1'b0, device: 1'b0, decode_error: 1'b1
     };
 
     //test transaction
@@ -84,7 +108,13 @@ module soc_addr_decode_tb;
         .burst_len    (input_desc.burst_len),
         .burst_size   (input_desc.burst_size),
         .burst_type   (input_desc.burst_type),
+        .hit          (output_desc.hit),
         .target       (output_desc.target),
+        .readable     (output_desc.readable),
+        .writable     (output_desc.writable),
+        .executable   (output_desc.executable),
+        .cacheable    (output_desc.cacheable),
+        .device       (output_desc.device),
         .decode_error (output_desc.decode_error)
     );
 

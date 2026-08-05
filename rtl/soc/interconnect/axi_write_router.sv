@@ -131,7 +131,13 @@ module axi_write_router
         .burst_len    (aw_len_q),
         .burst_size   (aw_size_q),
         .burst_type   (aw_burst_q),
+        .hit          (),
         .target       (decoded_target),
+        .readable     (),
+        .writable     (),
+        .executable   (),
+        .cacheable    (),
+        .device       (),
         .decode_error (decode_error)
     );
 

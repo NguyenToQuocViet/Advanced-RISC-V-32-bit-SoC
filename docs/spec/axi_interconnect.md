@@ -260,13 +260,22 @@ Pure combinational decoder, không giữ transaction state.
 | <code>burst_len</code> | input | 8 | AxLEN |
 | <code>burst_size</code> | input | 3 | AxSIZE |
 | <code>burst_type</code> | input | 2 | AxBURST |
+| <code>hit</code> | output | 1 | Address khớp ít nhất một region descriptor |
 | <code>target</code> | output | SOC_TARGET_WIDTH | Slave index |
+| <code>readable</code> | output | 1 | Region cho phép read |
+| <code>writable</code> | output | 1 | Region cho phép write |
+| <code>executable</code> | output | 1 | Region cho phép instruction fetch |
+| <code>cacheable</code> | output | 1 | Cache allocation được phép |
+| <code>device</code> | output | 1 | Region yêu cầu device/MMIO semantics |
 | <code>decode_error</code> | output | 1 | Unmapped, overlap hoặc access bị từ chối |
 
 Decoder phải tạo internal one-hot <code>region_hit[SOC_NUM_REGIONS]</code>. Assertion yêu cầu <code>$onehot0(region_hit)</code>. Overlap là configuration error, không phải runtime priority rule.
 
-Region hit, permission attributes, burst policy và <code>access_ok</code> là internal policy
-signals. Public interface chỉ expose routing result và tổng hợp error decision.
+Decoder expose region hit và raw PMA attributes để cache-side callers có thể dùng cùng address-map
+logic với interconnect. Burst policy và <code>access_ok</code> vẫn là internal policy signals;
+<code>decode_error</code> là access decision tổng hợp cho transaction hiện tại. Với unmapped address,
+<code>hit=0</code>, các raw PMA attributes bằng 0 và <code>target=TARGET_MEM</code> chỉ là giá trị mặc
+định, không phải một route hợp lệ.
 
 Cache-side caller cung cấp trực tiếp <code>is_fetch</code>. Trong interconnect, read request có <code>is_fetch=1</code> khi <code>ARID==2'b00</code>; mọi read ID khác và mọi write có <code>is_fetch=0</code>.
 

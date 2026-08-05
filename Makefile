@@ -24,6 +24,11 @@ TEST_TOP_axi_default_error   := axi_default_error_tb
 TEST_FILE_axi_default_error  := tb/unit/axi_default_error_tb.sv
 TEST_EXTRA_axi_default_error := rtl/soc/interconnect/axi_default_error.sv
 TEST_PASS_axi_default_error  := SUMMARY | PASS=6 FAIL=0
+TEST_TOP_soc_addr_decode   := soc_addr_decode_tb
+TEST_FILE_soc_addr_decode  := tb/unit/soc_addr_decode_tb.sv
+TEST_EXTRA_soc_addr_decode := rtl/soc/interconnect/soc_addr_map_pkg.sv \
+	rtl/soc/interconnect/soc_addr_decode.sv
+TEST_PASS_soc_addr_decode  := SUMMARY | PASS=35 FAIL=0
 TEST_TOP_axi_read_router   := axi_read_router_tb
 TEST_FILE_axi_read_router  := tb/unit/axi_read_router_tb.sv
 TEST_EXTRA_axi_read_router := rtl/soc/interconnect/soc_addr_map_pkg.sv \
@@ -73,9 +78,9 @@ TB_EXTRA = $(TEST_EXTRA_$(TEST))
 PASS_MARKER = $(TEST_PASS_$(TEST))
 
 REGRESSION_legacy5 := soc5
-REGRESSION_fpga7   := axi_read_router axi_write_router axi_interconnect_1xn dbp_sram dcache fetch core7 soc7
-REGRESSION_asap7   := axi_read_router axi_write_router axi_interconnect_1xn dbp_asap7 dcache fetch core7 soc7
-REGRESSION_sky130  := axi_read_router axi_write_router axi_interconnect_1xn dbp_sram dcache fetch core7 soc7
+REGRESSION_fpga7   := soc_addr_decode axi_read_router axi_write_router axi_interconnect_1xn dbp_sram dcache fetch core7 soc7
+REGRESSION_asap7   := soc_addr_decode axi_read_router axi_write_router axi_interconnect_1xn dbp_asap7 dcache fetch core7 soc7
+REGRESSION_sky130  := soc_addr_decode axi_read_router axi_write_router axi_interconnect_1xn dbp_sram dcache fetch core7 soc7
 REGRESSION_TESTS    = $(REGRESSION_$(TARGET))
 
 .PHONY: all check-target lint test regression regression-all synth librelane-config librelane-synth clean help

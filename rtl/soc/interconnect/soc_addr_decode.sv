@@ -32,13 +32,18 @@ module soc_addr_decode
     input  logic [2:0]                 burst_size,
     input  logic [1:0]                 burst_type,
 
+    output logic                       hit,
     output soc_target_t                target,
+    output logic                       readable,
+    output logic                       writable,
+    output logic                       executable,
+    output logic                       cacheable,
+    output logic                       device,
     output logic                       decode_error
 );
 
     //region match
     logic [SOC_NUM_REGIONS-1:0] region_hit;
-    logic                       hit;
 
     always_comb begin
         for (int i = 0; i < SOC_NUM_REGIONS; i++) begin
@@ -62,17 +67,15 @@ module soc_addr_decode
     end
 
     //decoded metadata
-    assign target = selected_desc.target;
-
-    //access permission
-    logic permission_ok;
-    logic readable;
-    logic writable;
-    logic executable;
-
+    assign target     = selected_desc.target;
     assign readable   = selected_desc.readable;
     assign writable   = selected_desc.writable;
     assign executable = selected_desc.executable;
+    assign cacheable  = selected_desc.cacheable;
+    assign device     = selected_desc.device;
+
+    //access permission
+    logic permission_ok;
 
     always_comb begin
         permission_ok = 1'b0;
