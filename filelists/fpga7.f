@@ -2,6 +2,8 @@
 rtl/cpu/core/cpu_pkg.sv
 rtl/cpu/cache/cache_pkg.sv
 rtl/cpu/cache/axi_pkg.sv
+rtl/soc/interconnect/soc_addr_map_pkg.sv
+rtl/soc/interconnect/soc_addr_decode.sv
 rtl/lib/fpga/sram_1rw_fpga.sv
 rtl/lib/fpga/sram_1r1w_fpga.sv
 rtl/lib/sram_1rw.sv

@@ -2,6 +2,8 @@
 rtl/cpu/core/cpu_pkg.sv
 rtl/cpu/cache/cache_pkg.sv
 rtl/cpu/cache/axi_pkg.sv
+rtl/soc/interconnect/soc_addr_map_pkg.sv
+rtl/soc/interconnect/soc_addr_decode.sv
 tb/models/sky130_sram_models.sv
 rtl/lib/sky130/sram_1rw_sky130.sv
 rtl/lib/sky130/sram_1r1w_sky130.sv

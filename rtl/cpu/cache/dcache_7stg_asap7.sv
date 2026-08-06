@@ -81,13 +81,33 @@ module dcache_7stg_asap7
     logic [DC_IDX_BITS-1:0]   addr_idx;
     logic [DC_TAG_BITS-1:0]   addr_tag;
     logic [ADDR_WIDTH-1:0]    addr_word_base;
+    logic                     addr_region_hit;
+    logic                     addr_cacheable;
+    logic                     addr_device;
     logic                     addr_uncacheable;
 
     assign addr_word_sel    = addr[WORD_OFF_BITS +: WORD_SEL_BITS];
     assign addr_idx         = addr[LINE_OFF_BITS +: DC_IDX_BITS];
     assign addr_tag         = addr[ADDR_WIDTH-1 -: DC_TAG_BITS];
     assign addr_word_base   = addr & {{(ADDR_WIDTH-WORD_OFF_BITS){1'b1}}, {WORD_OFF_BITS{1'b0}}};
-    assign addr_uncacheable = (addr[ADDR_WIDTH-1 -: 4] == 4'h1);
+    assign addr_uncacheable = !addr_region_hit || !addr_cacheable || addr_device;
+
+    soc_addr_decode u_addr_decode (
+        .addr         (addr),
+        .is_write     (mem_we),
+        .is_fetch     (1'b0),
+        .burst_len    (axi_pkg::AXI_LEN_SINGLE),
+        .burst_size   (3'd2),
+        .burst_type   (axi_pkg::AXI_BURST_INCR),
+        .hit          (addr_region_hit),
+        .target       (),
+        .readable     (),
+        .writable     (),
+        .executable   (),
+        .cacheable    (addr_cacheable),
+        .device       (addr_device),
+        .decode_error ()
+    );
 
     //lookup metadata - delayed to align with SRAM dout
     logic                       lookup_valid_q;
@@ -512,7 +532,7 @@ module dcache_7stg_asap7
 
         case (state)
             IDLE: begin
-                if (mem_req) begin
+                if (mem_req && !addr_uncacheable) begin
                     tag_en     = 1'b1;
                     tag_we     = 1'b0;
                     tag_addr   = {{(TAG_ADDR_WIDTH-DC_IDX_BITS){1'b0}}, addr_idx};
@@ -540,7 +560,7 @@ module dcache_7stg_asap7
                         data1_addr = {lookup_idx_q, lookup_word_sel_q[1]};
                         data1_din  = store_pair_next;
                     end
-                end else if (lookup_done && mem_req) begin
+                end else if (lookup_done && mem_req && !addr_uncacheable) begin
                     tag_en     = 1'b1;
                     tag_we     = 1'b0;
                     tag_addr   = {{(TAG_ADDR_WIDTH-DC_IDX_BITS){1'b0}}, addr_idx};
@@ -556,7 +576,7 @@ module dcache_7stg_asap7
             end
 
             STORE_DONE: begin
-                if (!wb_full && mem_req) begin
+                if (!wb_full && mem_req && !addr_uncacheable) begin
                     tag_en     = 1'b1;
                     tag_we     = 1'b0;
                     tag_addr   = {{(TAG_ADDR_WIDTH-DC_IDX_BITS){1'b0}}, addr_idx};

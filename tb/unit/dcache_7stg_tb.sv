@@ -103,7 +103,10 @@ module dcache_7stg_tb;
     localparam logic [ADDR_WIDTH-1:0] ADDR_B0 = 32'h0000_2000;
     localparam logic [ADDR_WIDTH-1:0] ADDR_C0 = 32'h0000_3000;
     localparam logic [ADDR_WIDTH-1:0] ADDR_D0 = 32'h0000_4000;
-    localparam logic [ADDR_WIDTH-1:0] ADDR_U0 = 32'h1000_0000;
+    localparam logic [ADDR_WIDTH-1:0] ADDR_TINY     = 32'h1000_0000;
+    localparam logic [ADDR_WIDTH-1:0] ADDR_ASCON    = 32'h2000_0000;
+    localparam logic [ADDR_WIDTH-1:0] ADDR_APB      = 32'h3000_0000;
+    localparam logic [ADDR_WIDTH-1:0] ADDR_UNMAPPED = 32'h4000_0000;
 
     int pass_count;
     int fail_count;
@@ -388,40 +391,45 @@ module dcache_7stg_tb;
     task automatic run_uncacheable_load;
         input logic [ADDR_WIDTH-1:0] t_addr;
         input logic [DATA_WIDTH-1:0] exp_data;
+        input string                 desc;
         bit saw_valid;
+        string access_desc;
         begin
-            saw_valid = 1'b0;
+            for (int access = 0; access < 2; access++) begin
+                saw_valid   = 1'b0;
+                access_desc = $sformatf("%s access %0d", desc, access + 1);
 
-            launch_load(t_addr, "T8 uncacheable load miss");
-            expect_ctrl(1'b0, 1'b0, "T8 uncacheable miss stalls");
+                launch_load(t_addr, {access_desc, " load miss"});
+                expect_ctrl(1'b0, 1'b0, {access_desc, " stalls"});
 
-            wait_bus_req(word_base(t_addr), "T8 uncacheable bus request");
-            accept_refill();
+                wait_bus_req(word_base(t_addr), {access_desc, " bus request"});
+                accept_refill();
 
-            for (int beat = 0; beat < WORDS_PER_LINE; beat++) begin
-                arb_valid = 1'b1;
-                arb_last  = (beat == WORDS_PER_LINE-1);
-                arb_rdata = (beat == 0) ? exp_data : (32'h1BAD_0000 + beat[31:0]);
+                for (int beat = 0; beat < WORDS_PER_LINE; beat++) begin
+                    arb_valid = 1'b1;
+                    arb_last  = (beat == WORDS_PER_LINE-1);
+                    arb_rdata = (beat == 0) ? exp_data : (32'h1BAD_0000 + beat[31:0]);
+                    step();
+
+                    if (dcache_valid && (rdata === exp_data))
+                        saw_valid = 1'b1;
+                end
+
+                arb_valid = 1'b0;
+                arb_last  = 1'b0;
+                arb_rdata = '0;
+
                 step();
-
                 if (dcache_valid && (rdata === exp_data))
                     saw_valid = 1'b1;
+
+                if (saw_valid)
+                    pass_msg({access_desc, " returns refill data"});
+                else
+                    fail_msg({access_desc, " returns refill data"});
+
+                expect_ctrl(1'b0, 1'b1, {access_desc, " returns idle"});
             end
-
-            arb_valid = 1'b0;
-            arb_last  = 1'b0;
-            arb_rdata = '0;
-
-            step();
-            if (dcache_valid && (rdata === exp_data))
-                saw_valid = 1'b1;
-
-            if (saw_valid)
-                pass_msg("T8 uncacheable load returns refill data");
-            else
-                fail_msg("T8 uncacheable load returns refill data");
-
-            expect_ctrl(1'b0, 1'b1, "T8 uncacheable returns idle");
         end
     endtask
 
@@ -433,7 +441,7 @@ module dcache_7stg_tb;
         reset_dut();
         expect_ctrl(1'b0, 1'b1, "reset idle ready");
 
-        //1. load miss, refill, critical-word-first response
+        //1. shared RAM remains cacheable: miss, refill, then hit
         launch_load(ADDR_A0, "T1 load miss A0");
         expect_ctrl(1'b0, 1'b0, "T1 miss enters refill path");
         send_refill_line(ADDR_A0,
@@ -566,8 +574,11 @@ module dcache_7stg_tb;
         expect_wb(1'b1, word_base(ADDR_D0), 32'hDADA_0001, 4'b1111, "T7 resumed wb push");
         step();
 
-        //8. uncacheable load should return data but not allocate
-        run_uncacheable_load(ADDR_U0, 32'h1BAD_C0DE);
+        //8. device and unmapped loads return data but never allocate
+        run_uncacheable_load(ADDR_TINY,     32'h1BAD_C001, "T8a Tiny uncacheable");
+        run_uncacheable_load(ADDR_ASCON,    32'h1BAD_C002, "T8b ASCON uncacheable");
+        run_uncacheable_load(ADDR_APB,      32'h1BAD_C003, "T8c APB uncacheable");
+        run_uncacheable_load(ADDR_UNMAPPED, 32'h1BAD_C004, "T8d unmapped uncacheable");
 
         //9. replace way1, preserve way0 tag
         reset_dut();

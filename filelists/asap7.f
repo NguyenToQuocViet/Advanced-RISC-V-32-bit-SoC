@@ -3,6 +3,8 @@
 rtl/cpu/core/cpu_pkg.sv
 rtl/cpu/cache/cache_pkg.sv
 rtl/cpu/cache/axi_pkg.sv
+rtl/soc/interconnect/soc_addr_map_pkg.sv
+rtl/soc/interconnect/soc_addr_decode.sv
 rtl/lib/asap7/srambank_64x4x20_6t122.v
 rtl/lib/asap7/srambank_64x4x48_6t122.v
 rtl/lib/asap7/srambank_64x4x64_6t122.v

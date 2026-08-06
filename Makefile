@@ -26,29 +26,18 @@ TEST_EXTRA_axi_default_error := rtl/soc/interconnect/axi_default_error.sv
 TEST_PASS_axi_default_error  := SUMMARY | PASS=6 FAIL=0
 TEST_TOP_soc_addr_decode   := soc_addr_decode_tb
 TEST_FILE_soc_addr_decode  := tb/unit/soc_addr_decode_tb.sv
-TEST_EXTRA_soc_addr_decode := rtl/soc/interconnect/soc_addr_map_pkg.sv \
-	rtl/soc/interconnect/soc_addr_decode.sv
 TEST_PASS_soc_addr_decode  := SUMMARY | PASS=35 FAIL=0
 TEST_TOP_axi_read_router   := axi_read_router_tb
 TEST_FILE_axi_read_router  := tb/unit/axi_read_router_tb.sv
-TEST_EXTRA_axi_read_router := rtl/soc/interconnect/soc_addr_map_pkg.sv \
-	rtl/soc/interconnect/soc_addr_decode.sv \
-	rtl/soc/interconnect/axi_read_router.sv
+TEST_EXTRA_axi_read_router := rtl/soc/interconnect/axi_read_router.sv
 TEST_PASS_axi_read_router  := SUMMARY | PASS=7 FAIL=0
 TEST_TOP_axi_write_router   := axi_write_router_tb
 TEST_FILE_axi_write_router  := tb/unit/axi_write_router_tb.sv
-TEST_EXTRA_axi_write_router := rtl/soc/interconnect/soc_addr_map_pkg.sv \
-	rtl/soc/interconnect/soc_addr_decode.sv \
-	rtl/soc/interconnect/axi_write_router.sv
+TEST_EXTRA_axi_write_router := rtl/soc/interconnect/axi_write_router.sv
 TEST_PASS_axi_write_router  := SUMMARY | PASS=7 FAIL=0
 TEST_TOP_axi_interconnect_1xn   := axi_interconnect_1xn_tb
 TEST_FILE_axi_interconnect_1xn  := tb/integration/axi_interconnect_1xn_tb.sv
-TEST_EXTRA_axi_interconnect_1xn := rtl/soc/interconnect/soc_addr_map_pkg.sv \
-	rtl/soc/interconnect/soc_addr_decode.sv \
-	rtl/soc/interconnect/axi_read_router.sv \
-	rtl/soc/interconnect/axi_write_router.sv \
-	rtl/soc/interconnect/axi_default_error.sv \
-	rtl/soc/interconnect/axi_interconnect_1xn.sv
+TEST_EXTRA_axi_interconnect_1xn := rtl/soc/interconnect/axi_read_router.sv rtl/soc/interconnect/axi_write_router.sv rtl/soc/interconnect/axi_default_error.sv rtl/soc/interconnect/axi_interconnect_1xn.sv
 TEST_PASS_axi_interconnect_1xn  := SUMMARY | PASS=8 FAIL=0
 TEST_TOP_fetch  := fetch_path_7stg_tb
 TEST_FILE_fetch := tb/integration/fetch_path_7stg_tb.sv
